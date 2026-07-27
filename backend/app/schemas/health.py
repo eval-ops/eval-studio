@@ -6,3 +6,4 @@ class HealthResponse(BaseModel):
 
     status: str = "healthy"
     version: str
+    auth_disabled: bool = False

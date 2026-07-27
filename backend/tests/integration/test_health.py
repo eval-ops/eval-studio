@@ -16,3 +16,12 @@ async def test_health_endpoint(client):
 async def test_health_response_has_correlation_id(client):
     response = await client.get("/api/v1/health")
     assert "x-request-id" in response.headers
+
+
+@pytest.mark.asyncio
+async def test_health_endpoint_includes_auth_disabled(client):
+    response = await client.get("/api/v1/health")
+    assert response.status_code == 200
+    data = response.json()
+    assert "auth_disabled" in data
+    assert data["auth_disabled"] == settings.auth_disabled
