@@ -98,13 +98,14 @@ describe('apiKeyStore', () => {
     expect(useApiKeyStore.getState().apiKeys[0].name).toBe('Updated Name');
   });
 
-  it('revokeApiKey removes key from store', async () => {
+  it('revokeApiKey marks key as inactive in store', async () => {
     useApiKeyStore.setState({ apiKeys: [mockKey] });
     vi.mocked(api.revokeApiKey).mockResolvedValue(undefined);
 
     await useApiKeyStore.getState().revokeApiKey('key-1');
 
-    expect(useApiKeyStore.getState().apiKeys).toHaveLength(0);
+    expect(useApiKeyStore.getState().apiKeys).toHaveLength(1);
+    expect(useApiKeyStore.getState().apiKeys[0].is_active).toBe(false);
   });
 
   it('revokeApiKey sets error on failure', async () => {

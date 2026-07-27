@@ -69,7 +69,7 @@ export const useApiKeyStore = create<ApiKeyStore>((set) => ({
     try {
       await api.revokeApiKey(id);
       set((state) => ({
-        apiKeys: state.apiKeys.filter((k) => k.id !== id),
+        apiKeys: state.apiKeys.map((k) => (k.id === id ? { ...k, is_active: false } : k)),
       }));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to revoke API key';
