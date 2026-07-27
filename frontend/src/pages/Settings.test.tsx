@@ -15,6 +15,10 @@ vi.mock('@/components/settings/ProviderList', () => ({
   ProviderList: () => <div data-testid="provider-list">Provider List Content</div>,
 }));
 
+vi.mock('@/components/settings/ApiKeyList', () => ({
+  ApiKeyList: () => <div data-testid="api-key-list">API Key List Content</div>,
+}));
+
 describe('Settings page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -31,11 +35,12 @@ describe('Settings page', () => {
     expect(screen.getByRole('heading', { name: /settings/i })).toBeInTheDocument();
   });
 
-  it('renders three tab triggers', async () => {
+  it('renders all tab triggers including API Keys', async () => {
     await renderPage();
     expect(screen.getByRole('tab', { name: /evaluators/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /rubrics/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /providers/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /api keys/i })).toBeInTheDocument();
   });
 
   it('shows Evaluators tab content by default', async () => {
@@ -59,5 +64,14 @@ describe('Settings page', () => {
     await user.click(screen.getByRole('tab', { name: /providers/i }));
 
     expect(screen.getByTestId('provider-list')).toBeInTheDocument();
+  });
+
+  it('switches to API Keys tab', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    await user.click(screen.getByRole('tab', { name: /api keys/i }));
+
+    expect(screen.getByTestId('api-key-list')).toBeInTheDocument();
   });
 });
