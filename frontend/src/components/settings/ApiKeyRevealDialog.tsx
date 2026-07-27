@@ -20,7 +20,7 @@ interface ApiKeyRevealDialogProps {
   onDone: () => void;
 }
 
-export function ApiKeyRevealDialog({ open, rawKey, onDone }: ApiKeyRevealDialogProps): JSX.Element {
+export function ApiKeyRevealDialog({ open, rawKey, onDone }: ApiKeyRevealDialogProps) {
   const [copied, setCopied] = useState(false);
   const [setAsActive, setSetAsActive] = useState(true);
 

@@ -26,7 +26,7 @@ import { ApiKeyForm } from './ApiKeyForm';
 import { ApiKeyRevealDialog } from './ApiKeyRevealDialog';
 import type { ApiKeyResponse, ApiKeyCreateResponse } from '@/types';
 
-export function ApiKeyList(): JSX.Element {
+export function ApiKeyList() {
   const apiKeys = useApiKeyStore((s) => s.apiKeys);
   const isLoading = useApiKeyStore((s) => s.isLoading);
   const error = useApiKeyStore((s) => s.error);

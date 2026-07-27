@@ -28,7 +28,7 @@ describe('ApiKeyForm', () => {
         createApiKey: mockCreateApiKey,
         updateApiKey: mockUpdateApiKey,
       };
-      return selector(state as ReturnType<typeof useApiKeyStore.getState>);
+      return selector(state as unknown as ReturnType<typeof useApiKeyStore.getState>);
     });
   });
 

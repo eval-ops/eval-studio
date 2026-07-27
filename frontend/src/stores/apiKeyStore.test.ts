@@ -74,7 +74,7 @@ describe('apiKeyStore', () => {
 
     expect(result).toEqual(mockCreateResponse);
     expect(useApiKeyStore.getState().apiKeys).toHaveLength(1);
-    expect(useApiKeyStore.getState().apiKeys[0].id).toBe('key-1');
+    expect(useApiKeyStore.getState().apiKeys[0]!.id).toBe('key-1');
   });
 
   it('createApiKey sets error on failure', async () => {
@@ -95,7 +95,7 @@ describe('apiKeyStore', () => {
     const result = await useApiKeyStore.getState().updateApiKey('key-1', { name: 'Updated Name' });
 
     expect(result.name).toBe('Updated Name');
-    expect(useApiKeyStore.getState().apiKeys[0].name).toBe('Updated Name');
+    expect(useApiKeyStore.getState().apiKeys[0]!.name).toBe('Updated Name');
   });
 
   it('revokeApiKey marks key as inactive in store', async () => {
@@ -105,7 +105,7 @@ describe('apiKeyStore', () => {
     await useApiKeyStore.getState().revokeApiKey('key-1');
 
     expect(useApiKeyStore.getState().apiKeys).toHaveLength(1);
-    expect(useApiKeyStore.getState().apiKeys[0].is_active).toBe(false);
+    expect(useApiKeyStore.getState().apiKeys[0]!.is_active).toBe(false);
   });
 
   it('revokeApiKey sets error on failure', async () => {
@@ -233,7 +233,7 @@ describe('apiKeyStore', () => {
     await useApiKeyStore.getState().createApiKey({ name: 'Second Key' });
 
     expect(useApiKeyStore.getState().apiKeys).toHaveLength(2);
-    expect(useApiKeyStore.getState().apiKeys[1].id).toBe('key-2');
+    expect(useApiKeyStore.getState().apiKeys[1]!.id).toBe('key-2');
   });
 
   it('updateApiKey only updates the matching key, leaving others unchanged', async () => {
@@ -254,8 +254,8 @@ describe('apiKeyStore', () => {
 
     const keys = useApiKeyStore.getState().apiKeys;
     expect(keys).toHaveLength(2);
-    expect(keys[0].name).toBe('Renamed');
-    expect(keys[1].name).toBe('Other Key');
+    expect(keys[0]!.name).toBe('Renamed');
+    expect(keys[1]!.name).toBe('Other Key');
   });
 
   it('revokeApiKey only deactivates the matching key', async () => {
@@ -274,7 +274,7 @@ describe('apiKeyStore', () => {
     await useApiKeyStore.getState().revokeApiKey('key-1');
 
     const keys = useApiKeyStore.getState().apiKeys;
-    expect(keys[0].is_active).toBe(false);
-    expect(keys[1].is_active).toBe(true);
+    expect(keys[0]!.is_active).toBe(false);
+    expect(keys[1]!.is_active).toBe(true);
   });
 });

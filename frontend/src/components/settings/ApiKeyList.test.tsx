@@ -57,8 +57,11 @@ function setupStore(overrides: Partial<ReturnType<typeof useApiKeyStore.getState
     return selector(state as ReturnType<typeof useApiKeyStore.getState>);
   }) as typeof useApiKeyStore;
   mockImpl.getState = () => state as ReturnType<typeof useApiKeyStore.getState>;
-  vi.mocked(useApiKeyStore).mockImplementation(mockImpl);
-  vi.mocked(useApiKeyStore).getState = mockImpl.getState;
+  (
+    vi.mocked(useApiKeyStore) as unknown as { mockImplementation: (fn: typeof mockImpl) => void }
+  ).mockImplementation(mockImpl);
+  (vi.mocked(useApiKeyStore) as unknown as { getState: typeof mockImpl.getState }).getState =
+    mockImpl.getState;
 }
 
 describe('ApiKeyList', () => {

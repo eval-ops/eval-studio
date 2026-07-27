@@ -16,13 +16,7 @@ interface ApiKeyFormProps {
   onSaved?: () => void;
 }
 
-export function ApiKeyForm({
-  open,
-  onOpenChange,
-  apiKey,
-  onCreated,
-  onSaved,
-}: ApiKeyFormProps): JSX.Element {
+export function ApiKeyForm({ open, onOpenChange, apiKey, onCreated, onSaved }: ApiKeyFormProps) {
   const [formKey, setFormKey] = useState(0);
 
   const handleOpenChange = (nextOpen: boolean): void => {
@@ -59,12 +53,7 @@ interface ApiKeyFormInnerProps {
   onClose: () => void;
 }
 
-function ApiKeyFormInner({
-  apiKey,
-  onCreated,
-  onSaved,
-  onClose,
-}: ApiKeyFormInnerProps): JSX.Element {
+function ApiKeyFormInner({ apiKey, onCreated, onSaved, onClose }: ApiKeyFormInnerProps) {
   const createApiKey = useApiKeyStore((s) => s.createApiKey);
   const updateApiKey = useApiKeyStore((s) => s.updateApiKey);
 
