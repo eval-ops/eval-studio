@@ -3,6 +3,7 @@ import { EvaluatorList } from '@/components/settings/EvaluatorList';
 import { RubricList } from '@/components/settings/RubricList';
 import { ProviderList } from '@/components/settings/ProviderList';
 import { ToolServerList } from '@/components/settings/ToolServerList';
+import { ApiKeyList } from '@/components/settings/ApiKeyList';
 
 export default function Settings() {
   return (
@@ -39,6 +40,12 @@ export default function Settings() {
           >
             Tool Servers
           </TabsTrigger>
+          <TabsTrigger
+            value="api-keys"
+            className="rounded-[7px] px-3 py-1 text-[12.5px] font-medium data-[state=active]:bg-surface-1 data-[state=active]:shadow-sm"
+          >
+            API Keys
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="evaluators" className="mt-4">
           <EvaluatorList />
@@ -51,6 +58,9 @@ export default function Settings() {
         </TabsContent>
         <TabsContent value="tool-servers" className="mt-4">
           <ToolServerList />
+        </TabsContent>
+        <TabsContent value="api-keys" className="mt-4">
+          <ApiKeyList />
         </TabsContent>
       </Tabs>
     </div>
