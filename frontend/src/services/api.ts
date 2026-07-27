@@ -36,6 +36,11 @@ import type {
   CreateToolServerRequest,
   UpdateToolServerRequest,
   Harness,
+  HealthResponse,
+  ApiKeyResponse,
+  ApiKeyCreateResponse,
+  ApiKeyCreate,
+  ApiKeyUpdate,
 } from '@/types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -106,7 +111,7 @@ async function request<T>(
 
 export const api = {
   // --- Health ---
-  getHealth: () => request<{ status: string; version: string }>('/api/v1/health'),
+  getHealth: () => request<HealthResponse>('/api/v1/health'),
 
   // --- Evaluations ---
   listEvaluations: (params?: {
@@ -363,6 +368,26 @@ export const api = {
     request<{ available: boolean; version: string | null }>(`/api/v1/harnesses/${id}/check`, {
       method: 'POST',
     }),
+
+  // --- API Keys ---
+  listApiKeys: (params?: { page?: number; page_size?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.page_size) query.set('page_size', String(params.page_size));
+    const qs = query.toString();
+    return request<PaginatedResponse<ApiKeyResponse>>(`/api/v1/api-keys${qs ? `?${qs}` : ''}`);
+  },
+  createApiKey: (data: ApiKeyCreate) =>
+    request<ApiKeyCreateResponse>('/api/v1/api-keys', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateApiKey: (id: string, data: ApiKeyUpdate) =>
+    request<ApiKeyResponse>(`/api/v1/api-keys/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  revokeApiKey: (id: string) => request<void>(`/api/v1/api-keys/${id}`, { method: 'DELETE' }),
 };
 
 export function getWsAuthParam(): string {
