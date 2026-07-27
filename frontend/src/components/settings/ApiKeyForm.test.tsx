@@ -104,4 +104,92 @@ describe('ApiKeyForm', () => {
     });
     expect(mockOnSaved).toHaveBeenCalled();
   });
+
+  it('shows error message when create API call fails', async () => {
+    const user = userEvent.setup();
+    mockCreateApiKey.mockRejectedValue(new Error('Server error'));
+
+    render(<ApiKeyForm open={true} onOpenChange={vi.fn()} />);
+
+    await user.type(screen.getByLabelText(/name/i), 'New Key');
+    await user.click(screen.getByRole('button', { name: /create/i }));
+
+    expect(screen.getByText('Failed to save API key. Please try again.')).toBeInTheDocument();
+  });
+
+  it('shows error message when update API call fails', async () => {
+    const user = userEvent.setup();
+    mockUpdateApiKey.mockRejectedValue(new Error('Server error'));
+
+    render(<ApiKeyForm open={true} onOpenChange={vi.fn()} apiKey={mockKey} />);
+
+    await user.click(screen.getByRole('button', { name: /update/i }));
+
+    expect(screen.getByText('Failed to save API key. Please try again.')).toBeInTheDocument();
+  });
+
+  it('sends description as null when left empty in create mode', async () => {
+    const user = userEvent.setup();
+    const createResponse: ApiKeyCreateResponse = {
+      ...mockKey,
+      raw_key: 'esk_raw_key_value',
+    };
+    mockCreateApiKey.mockResolvedValue(createResponse);
+
+    render(<ApiKeyForm open={true} onOpenChange={vi.fn()} />);
+
+    await user.type(screen.getByLabelText(/name/i), 'Key Without Desc');
+    await user.click(screen.getByRole('button', { name: /create/i }));
+
+    expect(mockCreateApiKey).toHaveBeenCalledWith({
+      name: 'Key Without Desc',
+      description: null,
+    });
+  });
+
+  it('sends description when provided in create mode', async () => {
+    const user = userEvent.setup();
+    const createResponse: ApiKeyCreateResponse = {
+      ...mockKey,
+      raw_key: 'esk_raw_key_value',
+    };
+    mockCreateApiKey.mockResolvedValue(createResponse);
+
+    render(<ApiKeyForm open={true} onOpenChange={vi.fn()} />);
+
+    await user.type(screen.getByLabelText(/name/i), 'CI Key');
+    await user.type(screen.getByLabelText(/description/i), 'For CI pipeline');
+    await user.click(screen.getByRole('button', { name: /create/i }));
+
+    expect(mockCreateApiKey).toHaveBeenCalledWith({
+      name: 'CI Key',
+      description: 'For CI pipeline',
+    });
+  });
+
+  it('does not render form inner content when closed', () => {
+    render(<ApiKeyForm open={false} onOpenChange={vi.fn()} />);
+
+    expect(screen.queryByLabelText(/name/i)).not.toBeInTheDocument();
+  });
+
+  it('trims whitespace from name and description', async () => {
+    const user = userEvent.setup();
+    const createResponse: ApiKeyCreateResponse = {
+      ...mockKey,
+      raw_key: 'esk_raw_key_value',
+    };
+    mockCreateApiKey.mockResolvedValue(createResponse);
+
+    render(<ApiKeyForm open={true} onOpenChange={vi.fn()} />);
+
+    await user.type(screen.getByLabelText(/name/i), '  Padded Name  ');
+    await user.type(screen.getByLabelText(/description/i), '  Some desc  ');
+    await user.click(screen.getByRole('button', { name: /create/i }));
+
+    expect(mockCreateApiKey).toHaveBeenCalledWith({
+      name: 'Padded Name',
+      description: 'Some desc',
+    });
+  });
 });

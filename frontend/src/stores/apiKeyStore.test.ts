@@ -138,4 +138,143 @@ describe('apiKeyStore', () => {
 
     expect(useApiKeyStore.getState().error).toBeNull();
   });
+
+  it('updateApiKey sets error on failure', async () => {
+    useApiKeyStore.setState({ apiKeys: [mockKey] });
+    vi.mocked(api.updateApiKey).mockRejectedValue(new Error('Update failed'));
+
+    await expect(useApiKeyStore.getState().updateApiKey('key-1', { name: 'New' })).rejects.toThrow(
+      'Update failed',
+    );
+
+    expect(useApiKeyStore.getState().error).toBe('Update failed');
+  });
+
+  it('updateApiKey uses fallback message for non-Error exceptions', async () => {
+    useApiKeyStore.setState({ apiKeys: [mockKey] });
+    vi.mocked(api.updateApiKey).mockRejectedValue('string error');
+
+    await expect(useApiKeyStore.getState().updateApiKey('key-1', { name: 'New' })).rejects.toBe(
+      'string error',
+    );
+
+    expect(useApiKeyStore.getState().error).toBe('Failed to update API key');
+  });
+
+  it('fetchAuthStatus sets error on failure', async () => {
+    vi.mocked(api.getHealth).mockRejectedValue(new Error('Health check failed'));
+
+    await useApiKeyStore.getState().fetchAuthStatus();
+
+    expect(useApiKeyStore.getState().error).toBe('Health check failed');
+    expect(useApiKeyStore.getState().authDisabled).toBeNull();
+  });
+
+  it('fetchAuthStatus uses fallback message for non-Error exceptions', async () => {
+    vi.mocked(api.getHealth).mockRejectedValue('network down');
+
+    await useApiKeyStore.getState().fetchAuthStatus();
+
+    expect(useApiKeyStore.getState().error).toBe('Failed to fetch auth status');
+  });
+
+  it('fetchApiKeys uses fallback message for non-Error exceptions', async () => {
+    vi.mocked(api.listApiKeys).mockRejectedValue(42);
+
+    await useApiKeyStore.getState().fetchApiKeys();
+
+    expect(useApiKeyStore.getState().error).toBe('Failed to fetch API keys');
+    expect(useApiKeyStore.getState().isLoading).toBe(false);
+  });
+
+  it('createApiKey uses fallback message for non-Error exceptions', async () => {
+    vi.mocked(api.createApiKey).mockRejectedValue(null);
+
+    await expect(useApiKeyStore.getState().createApiKey({ name: 'Test' })).rejects.toBeNull();
+
+    expect(useApiKeyStore.getState().error).toBe('Failed to create API key');
+  });
+
+  it('revokeApiKey uses fallback message for non-Error exceptions', async () => {
+    useApiKeyStore.setState({ apiKeys: [mockKey] });
+    vi.mocked(api.revokeApiKey).mockRejectedValue(undefined);
+
+    await expect(useApiKeyStore.getState().revokeApiKey('key-1')).rejects.toBeUndefined();
+
+    expect(useApiKeyStore.getState().error).toBe('Failed to revoke API key');
+  });
+
+  it('fetchAuthStatus sets authDisabled to false when health reports auth enabled', async () => {
+    vi.mocked(api.getHealth).mockResolvedValue({
+      status: 'healthy',
+      version: '0.1.0',
+      auth_disabled: false,
+    });
+
+    await useApiKeyStore.getState().fetchAuthStatus();
+
+    expect(useApiKeyStore.getState().authDisabled).toBe(false);
+  });
+
+  it('createApiKey appends to existing keys', async () => {
+    useApiKeyStore.setState({ apiKeys: [mockKey] });
+    const newKey: ApiKeyCreateResponse = {
+      id: 'key-2',
+      name: 'Second Key',
+      key_prefix: 'esk_def456..',
+      is_active: true,
+      description: null,
+      created_at: '2026-02-01T00:00:00Z',
+      last_used_at: null,
+      raw_key: 'esk_def456full_secret',
+    };
+    vi.mocked(api.createApiKey).mockResolvedValue(newKey);
+
+    await useApiKeyStore.getState().createApiKey({ name: 'Second Key' });
+
+    expect(useApiKeyStore.getState().apiKeys).toHaveLength(2);
+    expect(useApiKeyStore.getState().apiKeys[1].id).toBe('key-2');
+  });
+
+  it('updateApiKey only updates the matching key, leaving others unchanged', async () => {
+    const otherKey: ApiKeyResponse = {
+      id: 'key-other',
+      name: 'Other Key',
+      key_prefix: 'esk_other..',
+      is_active: true,
+      description: null,
+      created_at: '2026-01-01T00:00:00Z',
+      last_used_at: null,
+    };
+    useApiKeyStore.setState({ apiKeys: [mockKey, otherKey] });
+    const updatedKey = { ...mockKey, name: 'Renamed' };
+    vi.mocked(api.updateApiKey).mockResolvedValue(updatedKey);
+
+    await useApiKeyStore.getState().updateApiKey('key-1', { name: 'Renamed' });
+
+    const keys = useApiKeyStore.getState().apiKeys;
+    expect(keys).toHaveLength(2);
+    expect(keys[0].name).toBe('Renamed');
+    expect(keys[1].name).toBe('Other Key');
+  });
+
+  it('revokeApiKey only deactivates the matching key', async () => {
+    const otherKey: ApiKeyResponse = {
+      id: 'key-other',
+      name: 'Other Key',
+      key_prefix: 'esk_other..',
+      is_active: true,
+      description: null,
+      created_at: '2026-01-01T00:00:00Z',
+      last_used_at: null,
+    };
+    useApiKeyStore.setState({ apiKeys: [mockKey, otherKey] });
+    vi.mocked(api.revokeApiKey).mockResolvedValue(undefined);
+
+    await useApiKeyStore.getState().revokeApiKey('key-1');
+
+    const keys = useApiKeyStore.getState().apiKeys;
+    expect(keys[0].is_active).toBe(false);
+    expect(keys[1].is_active).toBe(true);
+  });
 });

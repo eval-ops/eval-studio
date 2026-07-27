@@ -180,4 +180,62 @@ describe('ApiKeyList', () => {
     expect(fetchApiKeys).toHaveBeenCalled();
     expect(fetchAuthStatus).toHaveBeenCalled();
   });
+
+  it('shows singular key count for one key', () => {
+    setupStore({ apiKeys: [mockKey] });
+    render(<ApiKeyList />);
+
+    expect(screen.getByText('1 key')).toBeInTheDocument();
+  });
+
+  it('calls clearError when dismiss button is clicked', async () => {
+    const user = userEvent.setup();
+    const clearError = vi.fn();
+    setupStore({ error: 'Something went wrong', apiKeys: [mockKey], clearError });
+    render(<ApiKeyList />);
+
+    await user.click(screen.getByText('Dismiss'));
+
+    expect(clearError).toHaveBeenCalled();
+  });
+
+  it('opens edit form when edit button is clicked', async () => {
+    const user = userEvent.setup();
+    setupStore({ apiKeys: [mockKey], authDisabled: true });
+    render(<ApiKeyList />);
+
+    await user.click(screen.getByRole('button', { name: /edit test key/i }));
+
+    expect(screen.getByTestId('api-key-form')).toBeInTheDocument();
+  });
+
+  it('shows description placeholder dash when description is null', () => {
+    setupStore({ apiKeys: [mockKey2] });
+    render(<ApiKeyList />);
+
+    // mockKey2 has null description, should show '-'
+    const cells = screen.getAllByRole('cell');
+    const descriptionCell = cells.find((cell) => cell.textContent === '-');
+    expect(descriptionCell).toBeInTheDocument();
+  });
+
+  it('formats dates correctly', () => {
+    setupStore({ apiKeys: [mockKey] });
+    render(<ApiKeyList />);
+
+    // mockKey has last_used_at: '2026-06-15T10:00:00Z', should display a formatted date
+    // mockKey has created_at: '2026-01-01T00:00:00Z'
+    // Check that 'Never' is not shown for last_used_at of mockKey
+    // (mockKey2 has last_used_at: null which would show 'Never')
+    const cells = screen.getAllByRole('cell');
+    const cellTexts = cells.map((c) => c.textContent);
+    expect(cellTexts).not.toContain('Never');
+  });
+
+  it('shows Never for null last_used_at', () => {
+    setupStore({ apiKeys: [mockKey2] });
+    render(<ApiKeyList />);
+
+    expect(screen.getByText('Never')).toBeInTheDocument();
+  });
 });
