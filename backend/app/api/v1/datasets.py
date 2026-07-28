@@ -14,10 +14,19 @@ from app.schemas.common import PaginatedResponse
 from app.schemas.dataset import (
     DatasetCreate,
     DatasetDetailResponse,
+    DatasetItemCreate,
+    DatasetItemResponse,
+    DatasetItemUpdate,
     DatasetResponse,
     DatasetUpdate,
 )
-from app.services.dataset_service import create_dataset_with_items, to_detail_response
+from app.services.dataset_service import (
+    add_items_to_dataset,
+    create_dataset_with_items,
+    delete_dataset_item,
+    to_detail_response,
+    update_dataset_item,
+)
 
 logger = structlog.get_logger()
 
@@ -126,4 +135,60 @@ async def delete_dataset(dataset_id: str, db: AsyncSession = Depends(get_db)) ->
     await db.delete(dataset)
     await db.commit()
     logger.info("dataset.deleted", id=dataset_id)
+    return Response(status_code=204)
+
+
+@router.post(
+    "/{dataset_id}/items",
+    response_model=list[DatasetItemResponse],
+    status_code=201,
+)
+async def add_items(
+    dataset_id: str,
+    items: list[DatasetItemCreate],
+    db: AsyncSession = Depends(get_db),
+) -> list[DatasetItemResponse]:
+    db_items = await add_items_to_dataset(db, dataset_id, items)
+    logger.info("dataset.items_added", dataset_id=dataset_id, count=len(items))
+    return [
+        DatasetItemResponse(
+            id=item.id,
+            question=item.question,
+            expected_answer=item.expected_answer,
+            metadata=item.metadata_,
+            order_index=item.order_index,
+        )
+        for item in db_items
+    ]
+
+
+@router.put(
+    "/{dataset_id}/items/{item_id}",
+    response_model=DatasetItemResponse,
+)
+async def update_item(
+    dataset_id: str,
+    item_id: str,
+    payload: DatasetItemUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> DatasetItemResponse:
+    item = await update_dataset_item(db, dataset_id, item_id, payload)
+    logger.info("dataset.item_updated", dataset_id=dataset_id, item_id=item_id)
+    return DatasetItemResponse(
+        id=item.id,
+        question=item.question,
+        expected_answer=item.expected_answer,
+        metadata=item.metadata_,
+        order_index=item.order_index,
+    )
+
+
+@router.delete("/{dataset_id}/items/{item_id}", status_code=204)
+async def delete_item(
+    dataset_id: str,
+    item_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    await delete_dataset_item(db, dataset_id, item_id)
+    logger.info("dataset.item_deleted", dataset_id=dataset_id, item_id=item_id)
     return Response(status_code=204)

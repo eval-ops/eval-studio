@@ -24,6 +24,14 @@ class DatasetItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class DatasetItemUpdate(BaseModel):
+    """Schema for updating a dataset item (partial update)."""
+
+    question: str | None = None
+    expected_answer: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
 class DatasetCreate(BaseModel):
     """Schema for creating a dataset with optional items."""
 
