@@ -9,6 +9,9 @@ vi.mock('@/services/api', () => ({
     createDataset: vi.fn(),
     updateDataset: vi.fn(),
     deleteDataset: vi.fn(),
+    addDatasetItems: vi.fn(),
+    updateDatasetItem: vi.fn(),
+    deleteDatasetItem: vi.fn(),
     analyzeDatasetFiles: vi.fn(),
     importDataset: vi.fn(),
   },
@@ -341,6 +344,97 @@ describe('datasetStore', () => {
       ).rejects.toThrow('Forbidden');
 
       expect(useDatasetStore.getState().error).toBe('Forbidden');
+    });
+  });
+
+  describe('addItems', () => {
+    it('calls addDatasetItems API and refetches dataset', async () => {
+      const newItems = [
+        { id: 'item-2', question: 'Q2', expected_answer: 'A2', metadata: null, order_index: 1 },
+      ];
+      mockedApi.addDatasetItems.mockResolvedValue(newItems);
+      mockedApi.getDataset.mockResolvedValue(makeDatasetDetail());
+
+      useDatasetStore.setState({ currentDataset: makeDatasetDetail() });
+
+      const result = await useDatasetStore
+        .getState()
+        .addItems('ds-1', [{ question: 'Q2', expected_answer: 'A2' }]);
+
+      expect(mockedApi.addDatasetItems).toHaveBeenCalledWith('ds-1', [
+        { question: 'Q2', expected_answer: 'A2' },
+      ]);
+      expect(result).toEqual(newItems);
+      expect(mockedApi.getDataset).toHaveBeenCalledWith('ds-1');
+    });
+
+    it('sets error and re-throws on failure', async () => {
+      mockedApi.addDatasetItems.mockRejectedValue(new Error('Add failed'));
+
+      await expect(
+        useDatasetStore.getState().addItems('ds-1', [{ question: 'Q2' }]),
+      ).rejects.toThrow('Add failed');
+
+      expect(useDatasetStore.getState().error).toBe('Add failed');
+    });
+  });
+
+  describe('updateItem', () => {
+    it('calls updateDatasetItem API and refetches dataset', async () => {
+      const updatedItem = {
+        id: 'item-1',
+        question: 'Updated Q',
+        expected_answer: 'A1',
+        metadata: null,
+        order_index: 0,
+      };
+      mockedApi.updateDatasetItem.mockResolvedValue(updatedItem);
+      mockedApi.getDataset.mockResolvedValue(makeDatasetDetail());
+
+      useDatasetStore.setState({ currentDataset: makeDatasetDetail() });
+
+      const result = await useDatasetStore
+        .getState()
+        .updateItem('ds-1', 'item-1', { question: 'Updated Q' });
+
+      expect(mockedApi.updateDatasetItem).toHaveBeenCalledWith('ds-1', 'item-1', {
+        question: 'Updated Q',
+      });
+      expect(result).toEqual(updatedItem);
+    });
+
+    it('sets error and re-throws on failure', async () => {
+      mockedApi.updateDatasetItem.mockRejectedValue(new Error('Update failed'));
+
+      await expect(
+        useDatasetStore.getState().updateItem('ds-1', 'item-1', { question: 'x' }),
+      ).rejects.toThrow('Update failed');
+
+      expect(useDatasetStore.getState().error).toBe('Update failed');
+    });
+  });
+
+  describe('deleteItem', () => {
+    it('calls deleteDatasetItem API and refetches dataset', async () => {
+      mockedApi.deleteDatasetItem.mockResolvedValue(undefined);
+      mockedApi.getDataset.mockResolvedValue(makeDatasetDetail());
+
+      useDatasetStore.setState({ currentDataset: makeDatasetDetail() });
+
+      await useDatasetStore.getState().deleteItem('ds-1', 'item-1');
+
+      expect(mockedApi.deleteDatasetItem).toHaveBeenCalledWith('ds-1', 'item-1');
+      expect(mockedApi.getDataset).toHaveBeenCalledWith('ds-1');
+    });
+
+    it('sets error and re-throws on failure', async () => {
+      mockedApi.deleteDatasetItem.mockRejectedValue(new Error('Delete failed'));
+
+      await expect(useDatasetStore.getState().deleteItem('ds-1', 'item-1')).rejects.toThrow(
+        'Delete failed',
+      );
+
+      expect(useDatasetStore.getState().error).toBe('Delete failed');
     });
   });
 

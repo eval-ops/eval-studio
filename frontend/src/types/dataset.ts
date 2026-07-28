@@ -8,6 +8,12 @@ export type FileAnalysisResult = components['schemas']['FileAnalysisResult'];
 export type SuggestedMapping = components['schemas']['SuggestedMappingResponse'];
 export type AnalyzeResponse = components['schemas']['AnalyzeResponse'];
 
+export interface DatasetItemUpdate {
+  question?: string;
+  expected_answer?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
 export type DatasetFormat = 'qa_pairs' | 'jsonl' | 'csv';
 
 export interface CreateDatasetRequest {

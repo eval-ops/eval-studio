@@ -9,6 +9,9 @@ import type {
   UpdateEvaluationRequest,
   Dataset,
   DatasetDetail,
+  DatasetItem,
+  DatasetItemCreate,
+  DatasetItemUpdate,
   CreateDatasetRequest,
   AnalyzeResponse,
   ImportRequest,
@@ -195,6 +198,18 @@ export const api = {
   updateDataset: (id: string, data: Partial<CreateDatasetRequest>) =>
     request<Dataset>(`/api/v1/datasets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteDataset: (id: string) => request<void>(`/api/v1/datasets/${id}`, { method: 'DELETE' }),
+  addDatasetItems: (datasetId: string, items: DatasetItemCreate[]) =>
+    request<DatasetItem[]>(`/api/v1/datasets/${datasetId}/items`, {
+      method: 'POST',
+      body: JSON.stringify(items),
+    }),
+  updateDatasetItem: (datasetId: string, itemId: string, data: DatasetItemUpdate) =>
+    request<DatasetItem>(`/api/v1/datasets/${datasetId}/items/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteDatasetItem: (datasetId: string, itemId: string) =>
+    request<void>(`/api/v1/datasets/${datasetId}/items/${itemId}`, { method: 'DELETE' }),
 
   // --- Smart Import ---
   analyzeDatasetFiles: (files: File[]) => {

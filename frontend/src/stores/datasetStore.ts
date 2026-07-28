@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import type {
   Dataset,
   DatasetDetail,
+  DatasetItem,
+  DatasetItemCreate,
+  DatasetItemUpdate,
   CreateDatasetRequest,
   AnalyzeResponse,
   ImportRequest,
@@ -30,6 +33,11 @@ interface DatasetStore {
   uploadDataset: (data: CreateDatasetRequest) => Promise<Dataset>;
   updateDataset: (id: string, data: Partial<CreateDatasetRequest>) => Promise<Dataset>;
   removeDataset: (id: string) => Promise<void>;
+
+  // Item CRUD actions
+  addItems: (datasetId: string, items: DatasetItemCreate[]) => Promise<DatasetItem[]>;
+  updateItem: (datasetId: string, itemId: string, data: DatasetItemUpdate) => Promise<DatasetItem>;
+  deleteItem: (datasetId: string, itemId: string) => Promise<void>;
 
   // Smart import actions
   analyzeFiles: (files: File[]) => Promise<void>;
@@ -113,6 +121,50 @@ export const useDatasetStore = create<DatasetStore>((set, get) => ({
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete dataset';
+      set({ error: message });
+      throw err;
+    }
+  },
+
+  addItems: async (datasetId: string, items: DatasetItemCreate[]) => {
+    try {
+      const newItems = await api.addDatasetItems(datasetId, items);
+      const { currentDataset } = get();
+      if (currentDataset?.id === datasetId) {
+        await get().fetchDataset(datasetId);
+      }
+      return newItems;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to add items';
+      set({ error: message });
+      throw err;
+    }
+  },
+
+  updateItem: async (datasetId: string, itemId: string, data: DatasetItemUpdate) => {
+    try {
+      const updated = await api.updateDatasetItem(datasetId, itemId, data);
+      const { currentDataset } = get();
+      if (currentDataset?.id === datasetId) {
+        await get().fetchDataset(datasetId);
+      }
+      return updated;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update item';
+      set({ error: message });
+      throw err;
+    }
+  },
+
+  deleteItem: async (datasetId: string, itemId: string) => {
+    try {
+      await api.deleteDatasetItem(datasetId, itemId);
+      const { currentDataset } = get();
+      if (currentDataset?.id === datasetId) {
+        await get().fetchDataset(datasetId);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete item';
       set({ error: message });
       throw err;
     }
