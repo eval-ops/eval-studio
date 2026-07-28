@@ -83,7 +83,7 @@ export function DatasetDetailView({ datasetId, open, onOpenChange }: DatasetDeta
     try {
       await updateItem(datasetId, editingItemId, {
         question: editQuestion,
-        expected_answer: editAnswer || undefined,
+        expected_answer: editAnswer || null,
       });
       toast.success('Item updated');
       cancelEdit();
