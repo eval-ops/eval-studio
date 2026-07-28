@@ -97,6 +97,22 @@ class TestAddItems:
         body = resp.json()
         assert body[0]["metadata"] == {"source": "manual"}
 
+    async def test_add_empty_items_list(self, client):
+        dataset = await self._create_dataset(client)
+        dataset_id = dataset["id"]
+
+        resp = await client.post(
+            f"/api/v1/datasets/{dataset_id}/items",
+            json=[],
+        )
+        assert resp.status_code == 201
+        body = resp.json()
+        assert body == []
+
+        # item_count should be unchanged
+        resp = await client.get(f"/api/v1/datasets/{dataset_id}")
+        assert resp.json()["item_count"] == 1
+
 
 @pytest.mark.asyncio
 class TestUpdateItem:
@@ -188,6 +204,44 @@ class TestUpdateItem:
         )
         assert resp.status_code == 404
 
+    async def test_update_metadata_field(self, client):
+        dataset = await self._create_dataset(client)
+        dataset_id = dataset["id"]
+        item_id = dataset["items"][0]["id"]
+
+        resp = await client.put(
+            f"/api/v1/datasets/{dataset_id}/items/{item_id}",
+            json={"metadata": {"source": "updated", "version": 2}},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["metadata"] == {"source": "updated", "version": 2}
+        # Original fields should be unchanged
+        assert body["question"] == "Q1"
+        assert body["expected_answer"] == "A1"
+
+    async def test_update_item_nonexistent_dataset(self, client):
+        resp = await client.put(
+            "/api/v1/datasets/nonexistent-id/items/some-item-id",
+            json={"question": "Updated"},
+        )
+        assert resp.status_code == 404
+
+    async def test_update_with_empty_body(self, client):
+        dataset = await self._create_dataset(client)
+        dataset_id = dataset["id"]
+        item_id = dataset["items"][0]["id"]
+
+        resp = await client.put(
+            f"/api/v1/datasets/{dataset_id}/items/{item_id}",
+            json={},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        # Nothing should change
+        assert body["question"] == "Q1"
+        assert body["expected_answer"] == "A1"
+
 
 @pytest.mark.asyncio
 class TestDeleteItem:
@@ -249,3 +303,21 @@ class TestDeleteItem:
 
         resp = await client.delete(f"/api/v1/datasets/{dataset1['id']}/items/{item_from_d2}")
         assert resp.status_code == 404
+
+    async def test_delete_item_nonexistent_dataset(self, client):
+        resp = await client.delete("/api/v1/datasets/nonexistent-id/items/some-item-id")
+        assert resp.status_code == 404
+
+    async def test_delete_item_is_actually_removed(self, client):
+        dataset = await self._create_dataset(client)
+        dataset_id = dataset["id"]
+        item_id = dataset["items"][0]["id"]
+
+        await client.delete(f"/api/v1/datasets/{dataset_id}/items/{item_id}")
+
+        # Verify item no longer appears in the dataset detail
+        resp = await client.get(f"/api/v1/datasets/{dataset_id}")
+        detail = resp.json()
+        remaining_ids = [item["id"] for item in detail["items"]]
+        assert item_id not in remaining_ids
+        assert len(detail["items"]) == 1

@@ -377,6 +377,20 @@ describe('datasetStore', () => {
 
       expect(useDatasetStore.getState().error).toBe('Add failed');
     });
+
+    it('skips fetchDataset when currentDataset has different id', async () => {
+      const newItems = [
+        { id: 'item-2', question: 'Q2', expected_answer: 'A2', metadata: null, order_index: 1 },
+      ];
+      mockedApi.addDatasetItems.mockResolvedValue(newItems);
+
+      useDatasetStore.setState({ currentDataset: makeDatasetDetail({ id: 'ds-other' }) });
+
+      await useDatasetStore.getState().addItems('ds-1', [{ question: 'Q2' }]);
+
+      expect(mockedApi.addDatasetItems).toHaveBeenCalled();
+      expect(mockedApi.getDataset).not.toHaveBeenCalled();
+    });
   });
 
   describe('updateItem', () => {
@@ -412,6 +426,24 @@ describe('datasetStore', () => {
 
       expect(useDatasetStore.getState().error).toBe('Update failed');
     });
+
+    it('skips fetchDataset when currentDataset has different id', async () => {
+      const updatedItem = {
+        id: 'item-1',
+        question: 'Updated Q',
+        expected_answer: 'A1',
+        metadata: null,
+        order_index: 0,
+      };
+      mockedApi.updateDatasetItem.mockResolvedValue(updatedItem);
+
+      useDatasetStore.setState({ currentDataset: makeDatasetDetail({ id: 'ds-other' }) });
+
+      await useDatasetStore.getState().updateItem('ds-1', 'item-1', { question: 'Updated Q' });
+
+      expect(mockedApi.updateDatasetItem).toHaveBeenCalled();
+      expect(mockedApi.getDataset).not.toHaveBeenCalled();
+    });
   });
 
   describe('deleteItem', () => {
@@ -435,6 +467,17 @@ describe('datasetStore', () => {
       );
 
       expect(useDatasetStore.getState().error).toBe('Delete failed');
+    });
+
+    it('skips fetchDataset when currentDataset has different id', async () => {
+      mockedApi.deleteDatasetItem.mockResolvedValue(undefined);
+
+      useDatasetStore.setState({ currentDataset: makeDatasetDetail({ id: 'ds-other' }) });
+
+      await useDatasetStore.getState().deleteItem('ds-1', 'item-1');
+
+      expect(mockedApi.deleteDatasetItem).toHaveBeenCalled();
+      expect(mockedApi.getDataset).not.toHaveBeenCalled();
     });
   });
 

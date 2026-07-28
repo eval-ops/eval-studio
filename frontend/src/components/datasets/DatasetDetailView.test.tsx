@@ -212,4 +212,32 @@ describe('DatasetDetailView', () => {
       { question: 'New question', expected_answer: 'New answer' },
     ]);
   });
+
+  it('shows empty state when dataset has no items', () => {
+    storeState.currentDataset = makeDetail({ items: [], item_count: 0 });
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+    expect(screen.getByText(/no items yet/i)).toBeInTheDocument();
+  });
+
+  it('disables save button for new item when question is empty', async () => {
+    storeState.currentDataset = makeDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: /add item/i }));
+
+    // Save button should be disabled when question is empty
+    const saveButtons = screen.getAllByRole('button', { name: /save/i });
+    expect(saveButtons[0]).toBeDisabled();
+  });
+
+  it('cancels delete when cancel is clicked in confirmation', async () => {
+    storeState.currentDataset = makeDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByLabelText('Delete item 1'));
+    const alertDialog = screen.getByRole('alertdialog');
+    await user.click(within(alertDialog).getByRole('button', { name: /cancel/i }));
+
+    expect(mockDeleteItem).not.toHaveBeenCalled();
+  });
 });

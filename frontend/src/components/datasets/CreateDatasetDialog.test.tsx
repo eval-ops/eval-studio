@@ -135,4 +135,61 @@ describe('CreateDatasetDialog', () => {
     render(<CreateDatasetDialog open={false} onOpenChange={vi.fn()} />);
     expect(screen.queryByText('Create Dataset')).not.toBeInTheDocument();
   });
+
+  it('does not close dialog when save fails', async () => {
+    mockUploadDataset.mockRejectedValue(new Error('Server error'));
+    const onOpenChange = vi.fn();
+
+    render(<CreateDatasetDialog open={true} onOpenChange={onOpenChange} />);
+
+    await user.type(screen.getByLabelText('Name'), 'My Dataset');
+    await user.type(screen.getByPlaceholderText('Enter question...'), 'What is Linux?');
+
+    await user.click(screen.getByRole('button', { name: /create$/i }));
+
+    // Dialog should remain open (onOpenChange not called with false)
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    // Form content should still be visible
+    expect(screen.getByLabelText('Name')).toBeInTheDocument();
+  });
+
+  it('discards content and closes when confirming discard', async () => {
+    const onOpenChange = vi.fn();
+    render(<CreateDatasetDialog open={true} onOpenChange={onOpenChange} />);
+
+    await user.type(screen.getByLabelText('Name'), 'My Dataset');
+
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+    // Confirm discard
+    const alertDialog = screen.getByRole('alertdialog');
+    const discardButton = within(alertDialog).getByRole('button', { name: /discard/i });
+    await user.click(discardButton);
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('filters out items with empty questions on save', async () => {
+    mockUploadDataset.mockResolvedValue({ id: 'ds-new', name: 'My Dataset' });
+
+    render(<CreateDatasetDialog open={true} onOpenChange={vi.fn()} />);
+
+    await user.type(screen.getByLabelText('Name'), 'My Dataset');
+
+    // First item has question
+    const questionInput = screen.getByPlaceholderText('Enter question...');
+    await user.type(questionInput, 'Valid question');
+
+    // Add second item but leave it empty
+    await user.click(screen.getByRole('button', { name: /add item/i }));
+
+    await user.click(screen.getByRole('button', { name: /create$/i }));
+
+    // Should only include the item with a non-empty question
+    expect(mockUploadDataset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [{ question: 'Valid question', expected_answer: undefined }],
+      }),
+    );
+  });
 });
