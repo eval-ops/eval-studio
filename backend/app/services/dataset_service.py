@@ -13,7 +13,6 @@ from app.schemas.dataset import (
     DatasetItemCreate,
     DatasetItemResponse,
     DatasetItemUpdate,
-    DatasetVersionItemResponse,
 )
 
 
@@ -137,7 +136,7 @@ def to_detail_response_from_version(
         version=dataset.version,
         tags=dataset.tags or [],
         source_type=dataset.source_type,
-        item_count=dataset.item_count,
+        item_count=len(version_items),
         latest_version_id=dataset.latest_version_id,
         created_at=dataset.created_at,
         updated_at=dataset.updated_at,
@@ -252,26 +251,3 @@ async def delete_dataset_item(db: AsyncSession, dataset_id: str, item_id: str) -
     await create_version_snapshot(db, dataset, all_items, change_note="Deleted item")
 
     await db.commit()
-
-
-async def get_version_items(
-    db: AsyncSession,
-    version_id: str,
-) -> list[DatasetVersionItemResponse]:
-    """Fetch all version items for a given version, ordered by order_index."""
-    result = await db.execute(
-        select(DatasetVersionItem)
-        .where(DatasetVersionItem.version_id == version_id)
-        .order_by(DatasetVersionItem.order_index)
-    )
-    items = result.scalars().all()
-    return [
-        DatasetVersionItemResponse(
-            id=vi.id,
-            question=vi.question,
-            expected_answer=vi.expected_answer,
-            metadata=vi.metadata_,
-            order_index=vi.order_index,
-        )
-        for vi in items
-    ]
