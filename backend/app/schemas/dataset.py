@@ -38,7 +38,6 @@ class DatasetCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = None
     format: str = "qa_pairs"
-    version: str = "1.0"
     tags: list[str] = []
     items: list[DatasetItemCreate] = []
 
@@ -49,7 +48,6 @@ class DatasetUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     tags: list[str] | None = None
-    version: str | None = None
 
 
 class DatasetResponse(BaseModel):
@@ -63,6 +61,7 @@ class DatasetResponse(BaseModel):
     tags: list[str]
     source_type: str
     item_count: int
+    latest_version_id: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -73,3 +72,33 @@ class DatasetDetailResponse(DatasetResponse):
     """Schema for a dataset with its items in detail API responses."""
 
     items: list[DatasetItemResponse]
+
+
+class DatasetVersionItemResponse(BaseModel):
+    """Schema for a dataset version item in API responses."""
+
+    id: str
+    question: str
+    expected_answer: str | None
+    metadata: dict[str, Any] | None
+    order_index: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DatasetVersionResponse(BaseModel):
+    """Schema for a dataset version in API responses."""
+
+    id: str
+    dataset_id: str
+    created_at: datetime
+    change_note: str | None
+    item_count: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DatasetVersionDetailResponse(DatasetVersionResponse):
+    """Schema for a dataset version with its items in API responses."""
+
+    items: list[DatasetVersionItemResponse]

@@ -425,7 +425,6 @@ class TestSchemaValidation:
             mapping=FieldMapping(question_field="question", answer_field="answer"),
         )
         assert req.merge_mode == "single"
-        assert req.version == "1.0"
 
     def test_field_mapping_requires_question(self):
         from pydantic import ValidationError
