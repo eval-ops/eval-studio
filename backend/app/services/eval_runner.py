@@ -121,6 +121,10 @@ async def run_evaluation(evaluation_id: str, db: AsyncSession) -> None:
             await _fail(evaluation, db, f"Dataset '{evaluation.dataset_id}' not found")
             return
 
+        # 4b. Pin dataset version
+        if dataset.latest_version_id:
+            evaluation.dataset_version_id = dataset.latest_version_id
+
         # 5. Load rubric
         config = evaluation.config or {}
         rubric = None

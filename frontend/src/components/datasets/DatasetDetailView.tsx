@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Check, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, Clock, Loader2, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +41,13 @@ export function DatasetDetailView({ datasetId, open, onOpenChange }: DatasetDeta
     addItems,
     updateItem,
     deleteItem,
+    versions,
+    selectedVersion,
+    viewingVersionId,
+    isLoadingVersions,
+    fetchVersions,
+    fetchVersionItems,
+    clearVersionView,
   } = useDatasetStore();
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -50,18 +57,22 @@ export function DatasetDetailView({ datasetId, open, onOpenChange }: DatasetDeta
   const [addingItem, setAddingItem] = useState(false);
   const [newQuestion, setNewQuestion] = useState('');
   const [newAnswer, setNewAnswer] = useState('');
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
 
   useEffect(() => {
     if (open && datasetId) {
       fetchDataset(datasetId);
+      void fetchVersions(datasetId);
     }
-  }, [open, datasetId, fetchDataset]);
+  }, [open, datasetId, fetchDataset, fetchVersions]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
       setCurrentDataset(null);
       setEditingItemId(null);
       setAddingItem(false);
+      setShowVersionHistory(false);
+      clearVersionView();
     }
     onOpenChange(nextOpen);
   };
@@ -87,21 +98,23 @@ export function DatasetDetailView({ datasetId, open, onOpenChange }: DatasetDeta
       });
       toast.success('Item updated');
       cancelEdit();
+      void fetchVersions(datasetId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update item');
     }
-  }, [editingItemId, datasetId, editQuestion, editAnswer, updateItem, cancelEdit]);
+  }, [editingItemId, datasetId, editQuestion, editAnswer, updateItem, cancelEdit, fetchVersions]);
 
   const confirmDelete = useCallback(async () => {
     if (!deleteTargetId || !datasetId) return;
     try {
       await deleteItem(datasetId, deleteTargetId);
       toast.success('Item deleted');
+      void fetchVersions(datasetId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete item');
     }
     setDeleteTargetId(null);
-  }, [deleteTargetId, datasetId, deleteItem]);
+  }, [deleteTargetId, datasetId, deleteItem, fetchVersions]);
 
   const handleAddItem = useCallback(async () => {
     if (!datasetId || !newQuestion.trim()) return;
@@ -113,10 +126,28 @@ export function DatasetDetailView({ datasetId, open, onOpenChange }: DatasetDeta
       setNewQuestion('');
       setNewAnswer('');
       setAddingItem(false);
+      void fetchVersions(datasetId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add item');
     }
-  }, [datasetId, newQuestion, newAnswer, addItems]);
+  }, [datasetId, newQuestion, newAnswer, addItems, fetchVersions]);
+
+  const handleViewVersion = useCallback(
+    (versionId: string) => {
+      if (!datasetId) return;
+      void fetchVersionItems(datasetId, versionId);
+    },
+    [datasetId, fetchVersionItems],
+  );
+
+  const handleBackToCurrent = useCallback(() => {
+    clearVersionView();
+  }, [clearVersionView]);
+
+  const isViewingHistory = viewingVersionId !== null;
+  const displayItems = isViewingHistory
+    ? (selectedVersion?.items ?? [])
+    : (currentDataset?.items ?? []);
 
   return (
     <>
@@ -174,23 +205,48 @@ export function DatasetDetailView({ datasetId, open, onOpenChange }: DatasetDeta
                 <Separator />
               </div>
 
-              <div className="px-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium">
-                    Items ({currentDataset.items?.length ?? 0})
-                  </h3>
+              {/* Version history indicator when viewing a historical version */}
+              {isViewingHistory && (
+                <div
+                  className="mx-4 rounded-md border border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 p-3 flex items-center justify-between"
+                  data-testid="version-history-banner"
+                >
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                      Viewing historical version
+                      {selectedVersion?.change_note ? ` — ${selectedVersion.change_note}` : ''}
+                    </p>
+                  </div>
                   <Button
-                    type="button"
-                    variant="outline"
                     size="sm"
-                    onClick={() => setAddingItem(true)}
+                    variant="outline"
+                    onClick={handleBackToCurrent}
+                    data-testid="back-to-current"
                   >
-                    <Plus className="mr-1 h-4 w-4" />
-                    Add Item
+                    <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                    Back to current
                   </Button>
                 </div>
+              )}
 
-                {addingItem && (
+              <div className="px-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium">Items ({displayItems.length})</h3>
+                  {!isViewingHistory && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAddingItem(true)}
+                    >
+                      <Plus className="mr-1 h-4 w-4" />
+                      Add Item
+                    </Button>
+                  )}
+                </div>
+
+                {!isViewingHistory && addingItem && (
                   <div className="rounded-md border border-primary/50 p-3 space-y-2">
                     <p className="text-xs text-muted-foreground">New item</p>
                     <Textarea
@@ -231,40 +287,42 @@ export function DatasetDetailView({ datasetId, open, onOpenChange }: DatasetDeta
                   </div>
                 )}
 
-                {currentDataset.items && currentDataset.items.length > 0 ? (
+                {displayItems.length > 0 ? (
                   <div className="max-h-[60vh] overflow-y-auto space-y-3">
-                    {currentDataset.items.map((item, idx) => (
+                    {displayItems.map((item, idx) => (
                       <div key={item.id} className="rounded-md border p-3 space-y-1">
                         <div className="flex items-center justify-between">
                           <p className="text-xs text-muted-foreground">#{idx + 1}</p>
-                          <div className="flex gap-1">
-                            {editingItemId !== item.id && (
-                              <>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  onClick={() =>
-                                    startEdit(item.id, item.question, item.expected_answer)
-                                  }
-                                  aria-label={`Edit item ${idx + 1}`}
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  onClick={() => setDeleteTargetId(item.id)}
-                                  aria-label={`Delete item ${idx + 1}`}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
+                          {!isViewingHistory && (
+                            <div className="flex gap-1">
+                              {editingItemId !== item.id && (
+                                <>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={() =>
+                                      startEdit(item.id, item.question, item.expected_answer)
+                                    }
+                                    aria-label={`Edit item ${idx + 1}`}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={() => setDeleteTargetId(item.id)}
+                                    aria-label={`Delete item ${idx + 1}`}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        {editingItemId === item.id ? (
+                        {!isViewingHistory && editingItemId === item.id ? (
                           <div className="space-y-2">
                             <Textarea
                               value={editQuestion}
@@ -310,6 +368,61 @@ export function DatasetDetailView({ datasetId, open, onOpenChange }: DatasetDeta
                   <p className="text-sm text-muted-foreground">
                     No items yet. Click &quot;Add Item&quot; to get started.
                   </p>
+                )}
+              </div>
+
+              {/* Version History Section */}
+              <div className="px-4">
+                <Separator />
+              </div>
+
+              <div className="px-4 space-y-3" data-testid="version-history-section">
+                <button
+                  type="button"
+                  className="flex items-center gap-2 text-sm font-medium cursor-pointer bg-transparent border-0 p-0"
+                  onClick={() => setShowVersionHistory(!showVersionHistory)}
+                  data-testid="toggle-version-history"
+                >
+                  <Clock className="h-4 w-4" />
+                  Version History ({versions.length})
+                </button>
+
+                {showVersionHistory && (
+                  <div className="space-y-2">
+                    {isLoadingVersions ? (
+                      <div className="flex justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : versions.length > 0 ? (
+                      versions.map((version) => (
+                        <button
+                          key={version.id}
+                          type="button"
+                          className={`w-full text-left rounded-md border p-2 space-y-1 cursor-pointer bg-transparent ${
+                            viewingVersionId === version.id
+                              ? 'border-primary bg-primary/5'
+                              : 'hover:border-primary/50'
+                          }`}
+                          onClick={() => handleViewVersion(version.id)}
+                          data-testid={`version-entry-${version.id}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-medium">
+                              {new Date(version.created_at).toLocaleString()}
+                            </p>
+                            <Badge variant="secondary" className="text-xs">
+                              {version.item_count} items
+                            </Badge>
+                          </div>
+                          {version.change_note && (
+                            <p className="text-xs text-muted-foreground">{version.change_note}</p>
+                          )}
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No version history</p>
+                    )}
+                  </div>
                 )}
               </div>
             </>

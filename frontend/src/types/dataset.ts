@@ -20,7 +20,6 @@ export interface CreateDatasetRequest {
   name: string;
   description?: string;
   format: DatasetFormat;
-  version?: string;
   tags?: string[];
   items?: DatasetItemCreate[];
 }
@@ -39,4 +38,24 @@ export interface ImportRequest {
   tags?: string[];
   mapping: FieldMapping;
   merge_mode: MergeMode;
+}
+
+export interface DatasetVersion {
+  id: string;
+  dataset_id: string;
+  created_at: string;
+  change_note: string | null;
+  item_count: number;
+}
+
+export interface DatasetVersionItem {
+  id: string;
+  question: string;
+  expected_answer: string | null;
+  metadata: Record<string, unknown> | null;
+  order_index: number;
+}
+
+export interface DatasetVersionDetail extends DatasetVersion {
+  items: DatasetVersionItem[];
 }

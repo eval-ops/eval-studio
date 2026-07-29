@@ -24,6 +24,9 @@ class Evaluation(Base):
     rubric_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("rubrics.id", ondelete="SET NULL"), nullable=True
     )
+    dataset_version_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("dataset_versions.id", ondelete="SET NULL"), nullable=True
+    )
     updated_at: Mapped[datetime] = mapped_column(TZDateTime, default=_utcnow, onupdate=_utcnow)
 
     results: Mapped[list["Result"]] = relationship(

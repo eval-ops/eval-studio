@@ -16,7 +16,7 @@ def test_dataset_create_schema_defaults():
     data = DatasetCreate(name="Minimal")
     assert data.items == []
     assert data.tags == []
-    assert data.version == "1.0"
+    assert not hasattr(data, "version") or "version" not in data.model_fields
 
 
 def test_evaluation_mode_enum():

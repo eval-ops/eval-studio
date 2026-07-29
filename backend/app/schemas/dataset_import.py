@@ -54,4 +54,3 @@ class ImportRequest(BaseModel):
     mapping: FieldMapping
     merge_mode: Literal["single", "separate"] = "single"
     tags: list[str] = []
-    version: str = "1.0"

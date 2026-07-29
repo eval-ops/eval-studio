@@ -1,14 +1,15 @@
 import math
 
 import structlog
-from fastapi import APIRouter, Depends, Response
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, Query, Response
+from sqlalchemy import func as sa_func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.exceptions import ConflictException, NotFoundException
 from app.core.security import require_auth
-from app.models.dataset import Dataset
+from app.models.dataset import Dataset, DatasetVersion, DatasetVersionItem
 from app.models.evaluation import Evaluation
 from app.schemas.common import PaginatedResponse
 from app.schemas.dataset import (
@@ -19,12 +20,16 @@ from app.schemas.dataset import (
     DatasetItemUpdate,
     DatasetResponse,
     DatasetUpdate,
+    DatasetVersionDetailResponse,
+    DatasetVersionItemResponse,
+    DatasetVersionResponse,
 )
 from app.services.dataset_service import (
     add_items_to_dataset,
     create_dataset_with_items,
     delete_dataset_item,
     to_detail_response,
+    to_detail_response_from_version,
     update_dataset_item,
 )
 
@@ -45,7 +50,6 @@ async def create_dataset(payload: DatasetCreate, db: AsyncSession = Depends(get_
         name=payload.name,
         description=payload.description,
         format=payload.format,
-        version=payload.version,
         tags=payload.tags,
         source_type="upload",
         items=items_data,
@@ -63,7 +67,7 @@ async def list_datasets(
 ) -> PaginatedResponse[DatasetResponse]:
     """List datasets with pagination and optional name filter."""
     query = select(Dataset)
-    count_query = select(func.count(Dataset.id))
+    count_query = select(sa_func.count(Dataset.id))
 
     if name:
         query = query.where(Dataset.name.ilike(f"%{name}%"))
@@ -86,12 +90,40 @@ async def list_datasets(
 
 
 @router.get("/{dataset_id}", response_model=DatasetDetailResponse)
-async def get_dataset(dataset_id: str, db: AsyncSession = Depends(get_db)) -> DatasetDetailResponse:
-    """Get a dataset by ID with all its items."""
+async def get_dataset(
+    dataset_id: str,
+    version_id: str | None = Query(default=None, description="Return items from a specific version snapshot"),
+    db: AsyncSession = Depends(get_db),
+) -> DatasetDetailResponse:
+    """Get a dataset by ID with all its items.
+
+    If version_id is provided, returns items from that historical version snapshot
+    instead of the current live items.
+    """
     result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
     if not dataset:
         raise NotFoundException("Dataset", dataset_id)
+
+    if version_id:
+        # Return items from the specified version
+        version_result = await db.execute(
+            select(DatasetVersion).where(
+                DatasetVersion.id == version_id,
+                DatasetVersion.dataset_id == dataset_id,
+            )
+        )
+        version = version_result.scalar_one_or_none()
+        if not version:
+            raise NotFoundException("DatasetVersion", version_id)
+
+        vi_result = await db.execute(
+            select(DatasetVersionItem)
+            .where(DatasetVersionItem.version_id == version_id)
+            .order_by(DatasetVersionItem.order_index)
+        )
+        version_items = list(vi_result.scalars().all())
+        return to_detail_response_from_version(dataset, version_items)
 
     return to_detail_response(dataset, sorted(dataset.items, key=lambda i: i.order_index))
 
@@ -124,13 +156,17 @@ async def delete_dataset(dataset_id: str, db: AsyncSession = Depends(get_db)) ->
     if not dataset:
         raise NotFoundException("Dataset", dataset_id)
 
-    ref_result = await db.execute(select(func.count(Evaluation.id)).where(Evaluation.dataset_id == dataset_id))
+    ref_result = await db.execute(select(sa_func.count(Evaluation.id)).where(Evaluation.dataset_id == dataset_id))
     ref_count = ref_result.scalar_one()
     if ref_count > 0:
         raise ConflictException(
             f"Cannot delete dataset: {ref_count} evaluation(s) reference it. "
             "Delete or reassign those evaluations first."
         )
+
+    # Clear latest_version_id FK before cascade-deleting versions
+    dataset.latest_version_id = None
+    await db.flush()
 
     await db.delete(dataset)
     await db.commit()
@@ -192,3 +228,75 @@ async def delete_item(
     await delete_dataset_item(db, dataset_id, item_id)
     logger.info("dataset.item_deleted", dataset_id=dataset_id, item_id=item_id)
     return Response(status_code=204)
+
+
+# ---------------------------------------------------------------------------
+# Version history endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{dataset_id}/versions",
+    response_model=list[DatasetVersionResponse],
+)
+async def list_versions(
+    dataset_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> list[DatasetVersionResponse]:
+    """List all version snapshots for a dataset, newest first."""
+    # Verify dataset exists
+    ds_result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+    if not ds_result.scalar_one_or_none():
+        raise NotFoundException("Dataset", dataset_id)
+
+    result = await db.execute(
+        select(DatasetVersion).where(DatasetVersion.dataset_id == dataset_id).order_by(DatasetVersion.created_at.desc())
+    )
+    versions = result.scalars().all()
+    return [DatasetVersionResponse.model_validate(v) for v in versions]
+
+
+@router.get(
+    "/{dataset_id}/versions/{version_id}",
+    response_model=DatasetVersionDetailResponse,
+)
+async def get_version_detail(
+    dataset_id: str,
+    version_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> DatasetVersionDetailResponse:
+    """Get a version snapshot with its items."""
+    version_result = await db.execute(
+        select(DatasetVersion).where(
+            DatasetVersion.id == version_id,
+            DatasetVersion.dataset_id == dataset_id,
+        )
+    )
+    version = version_result.scalar_one_or_none()
+    if not version:
+        raise NotFoundException("DatasetVersion", version_id)
+
+    vi_result = await db.execute(
+        select(DatasetVersionItem)
+        .where(DatasetVersionItem.version_id == version_id)
+        .order_by(DatasetVersionItem.order_index)
+    )
+    version_items = vi_result.scalars().all()
+
+    return DatasetVersionDetailResponse(
+        id=version.id,
+        dataset_id=version.dataset_id,
+        created_at=version.created_at,
+        change_note=version.change_note,
+        item_count=version.item_count,
+        items=[
+            DatasetVersionItemResponse(
+                id=vi.id,
+                question=vi.question,
+                expected_answer=vi.expected_answer,
+                metadata=vi.metadata_,
+                order_index=vi.order_index,
+            )
+            for vi in version_items
+        ],
+    )

@@ -205,7 +205,6 @@ async def import_dataset(payload: ImportRequest, db: AsyncSession = Depends(get_
             name=ds_name,
             description=payload.description,
             format="qa_pairs",
-            version=payload.version,
             tags=payload.tags,
             source_type="import",
             items=items_data,

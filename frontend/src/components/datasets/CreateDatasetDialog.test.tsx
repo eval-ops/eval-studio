@@ -109,7 +109,6 @@ describe('CreateDatasetDialog', () => {
       name: 'My Dataset',
       description: 'A description',
       format: 'qa_pairs',
-      version: '1.0',
       tags: [],
       items: [{ question: 'What is Linux?', expected_answer: 'An OS kernel' }],
     });
