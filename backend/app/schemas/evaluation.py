@@ -62,6 +62,9 @@ class EvaluationResponse(BaseModel):
     status: EvaluationStatus = Field(description="Current evaluation status.")
     error: str | None = Field(default=None, description="Error message if the evaluation failed.")
     dataset_id: str | None = Field(description="ID of the dataset being evaluated.")
+    dataset_version_id: str | None = Field(
+        default=None, description="ID of the dataset version used for this evaluation."
+    )
     rubric_id: str | None = Field(default=None, description="ID of the rubric used for dimension-based scoring.")
     config: dict[str, Any] = Field(description="Mode-specific configuration.")
     tags: list[str] = Field(default=[], description="Tags for categorization.")
