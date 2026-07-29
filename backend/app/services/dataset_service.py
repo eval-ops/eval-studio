@@ -2,10 +2,12 @@
 
 from typing import Any
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import NotFoundException
 from app.models.dataset import Dataset, DatasetItem
-from app.schemas.dataset import DatasetDetailResponse, DatasetItemResponse
+from app.schemas.dataset import DatasetDetailResponse, DatasetItemCreate, DatasetItemResponse, DatasetItemUpdate
 
 
 async def create_dataset_with_items(
@@ -73,3 +75,77 @@ def to_detail_response(dataset: Dataset, items: list[DatasetItem]) -> DatasetDet
             for item in items
         ],
     )
+
+
+async def _get_dataset_or_raise(db: AsyncSession, dataset_id: str) -> Dataset:
+    result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise NotFoundException("Dataset", dataset_id)
+    return dataset
+
+
+async def _get_item_or_raise(db: AsyncSession, dataset_id: str, item_id: str) -> DatasetItem:
+    result = await db.execute(
+        select(DatasetItem).where(DatasetItem.id == item_id, DatasetItem.dataset_id == dataset_id)
+    )
+    item = result.scalar_one_or_none()
+    if not item:
+        raise NotFoundException("DatasetItem", item_id)
+    return item
+
+
+async def add_items_to_dataset(db: AsyncSession, dataset_id: str, items: list[DatasetItemCreate]) -> list[DatasetItem]:
+    dataset = await _get_dataset_or_raise(db, dataset_id)
+
+    max_idx_result = await db.execute(
+        select(func.coalesce(func.max(DatasetItem.order_index), -1)).where(DatasetItem.dataset_id == dataset_id)
+    )
+    current_max = max_idx_result.scalar_one()
+
+    db_items: list[DatasetItem] = []
+    for offset, item_data in enumerate(items):
+        db_item = DatasetItem(
+            dataset_id=dataset_id,
+            question=item_data.question,
+            expected_answer=item_data.expected_answer,
+            metadata_=item_data.metadata,
+            order_index=current_max + 1 + offset,
+        )
+        db.add(db_item)
+        db_items.append(db_item)
+
+    dataset.item_count += len(items)
+    await db.commit()
+
+    for item in db_items:
+        await db.refresh(item)
+
+    return db_items
+
+
+async def update_dataset_item(
+    db: AsyncSession, dataset_id: str, item_id: str, payload: DatasetItemUpdate
+) -> DatasetItem:
+    await _get_dataset_or_raise(db, dataset_id)
+    item = await _get_item_or_raise(db, dataset_id, item_id)
+
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if field == "metadata":
+            item.metadata_ = value
+        else:
+            setattr(item, field, value)
+
+    await db.commit()
+    await db.refresh(item)
+    return item
+
+
+async def delete_dataset_item(db: AsyncSession, dataset_id: str, item_id: str) -> None:
+    dataset = await _get_dataset_or_raise(db, dataset_id)
+    item = await _get_item_or_raise(db, dataset_id, item_id)
+
+    await db.delete(item)
+    dataset.item_count -= 1
+    await db.commit()

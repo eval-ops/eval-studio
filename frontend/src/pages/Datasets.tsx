@@ -14,6 +14,7 @@ import {
   Database,
   Loader2,
   Pencil,
+  Plus,
   Star,
   Trash2,
   Upload,
@@ -42,6 +43,7 @@ import {
 } from '@/components/ui/dialog';
 
 import { useDatasetStore } from '@/stores/datasetStore';
+import { CreateDatasetDialog } from '@/components/datasets/CreateDatasetDialog';
 import { SmartImportDialog } from '@/components/datasets/SmartImportDialog';
 import { DatasetDetailView } from '@/components/datasets/DatasetDetailView';
 import { DatasetEditSheet } from '@/components/datasets/DatasetEditSheet';
@@ -144,6 +146,7 @@ export default function Datasets() {
   const { datasets, isLoading, error, fetchDatasets, removeDataset } = useDatasetStore();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Dataset | null>(null);
   const [editTarget, setEditTarget] = useState<Dataset | null>(null);
   const [detailTarget, setDetailTarget] = useState<Dataset | null>(null);
@@ -187,13 +190,22 @@ export default function Datasets() {
             Your dataset library. Upload, import, version, and browse evaluation datasets.
           </p>
         </div>
-        <button
-          className="flex items-center gap-2 rounded-[9px] bg-primary px-4 py-2.5 text-[13px] font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
-          onClick={() => setUploadDialogOpen(true)}
-        >
-          <Upload className="h-4 w-4" />
-          Import Dataset
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="flex items-center gap-2 rounded-[9px] border border-border bg-background px-4 py-2.5 text-[13px] font-medium shadow-sm transition-colors hover:bg-accent"
+            onClick={() => setCreateDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Create Dataset
+          </button>
+          <button
+            className="flex items-center gap-2 rounded-[9px] bg-primary px-4 py-2.5 text-[13px] font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+            onClick={() => setUploadDialogOpen(true)}
+          >
+            <Upload className="h-4 w-4" />
+            Import Dataset
+          </button>
+        </div>
       </div>
 
       {/* Smart-import banner */}
@@ -221,7 +233,12 @@ export default function Datasets() {
             <p className="text-sm text-muted-foreground mt-1 mb-4">
               Upload a dataset to get started with your evaluations.
             </p>
-            <Button onClick={() => setUploadDialogOpen(true)}>Import Dataset</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
+                Create Dataset
+              </Button>
+              <Button onClick={() => setUploadDialogOpen(true)}>Import Dataset</Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -309,6 +326,9 @@ export default function Datasets() {
           dataset={editTarget}
         />
       )}
+
+      {/* Create Dialog */}
+      <CreateDatasetDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
 
       {/* Import Dialog */}
       <SmartImportDialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen} />

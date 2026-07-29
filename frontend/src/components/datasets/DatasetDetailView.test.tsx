@@ -1,9 +1,13 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { DatasetDetail } from '@/types';
 
 const mockFetchDataset = vi.fn();
 const mockSetCurrentDataset = vi.fn();
+const mockAddItems = vi.fn();
+const mockUpdateItem = vi.fn();
+const mockDeleteItem = vi.fn();
 
 const makeDetail = (overrides: Partial<DatasetDetail> = {}): DatasetDetail => ({
   id: 'ds-1',
@@ -40,6 +44,9 @@ let storeState: {
   isLoading: boolean;
   fetchDataset: typeof mockFetchDataset;
   setCurrentDataset: typeof mockSetCurrentDataset;
+  addItems: typeof mockAddItems;
+  updateItem: typeof mockUpdateItem;
+  deleteItem: typeof mockDeleteItem;
 };
 
 vi.mock('@/stores/datasetStore', () => ({
@@ -54,6 +61,8 @@ vi.mock('@/stores/datasetStore', () => ({
 import { DatasetDetailView } from './DatasetDetailView';
 
 describe('DatasetDetailView', () => {
+  const user = userEvent.setup();
+
   beforeEach(() => {
     vi.clearAllMocks();
     storeState = {
@@ -61,6 +70,9 @@ describe('DatasetDetailView', () => {
       isLoading: false,
       fetchDataset: mockFetchDataset,
       setCurrentDataset: mockSetCurrentDataset,
+      addItems: mockAddItems,
+      updateItem: mockUpdateItem,
+      deleteItem: mockDeleteItem,
     };
   });
 
@@ -94,5 +106,138 @@ describe('DatasetDetailView', () => {
     storeState.isLoading = true;
     render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
     expect(screen.getByTestId('detail-loading')).toBeInTheDocument();
+  });
+
+  it('shows edit and delete buttons for each item', () => {
+    storeState.currentDataset = makeDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+    expect(screen.getByLabelText('Edit item 1')).toBeInTheDocument();
+    expect(screen.getByLabelText('Delete item 1')).toBeInTheDocument();
+    expect(screen.getByLabelText('Edit item 2')).toBeInTheDocument();
+    expect(screen.getByLabelText('Delete item 2')).toBeInTheDocument();
+  });
+
+  it('shows Add Item button', () => {
+    storeState.currentDataset = makeDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /add item/i })).toBeInTheDocument();
+  });
+
+  it('enters edit mode when clicking edit button', async () => {
+    storeState.currentDataset = makeDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByLabelText('Edit item 1'));
+
+    expect(screen.getByTestId('edit-question')).toBeInTheDocument();
+    expect(screen.getByTestId('edit-answer')).toBeInTheDocument();
+  });
+
+  it('calls updateItem when saving edit', async () => {
+    storeState.currentDataset = makeDetail();
+    mockUpdateItem.mockResolvedValue({});
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByLabelText('Edit item 1'));
+
+    const questionInput = screen.getByTestId('edit-question');
+    await user.clear(questionInput);
+    await user.type(questionInput, 'Updated question');
+
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    expect(mockUpdateItem).toHaveBeenCalledWith('ds-1', 'item-1', {
+      question: 'Updated question',
+      expected_answer: 'An operating system kernel',
+    });
+  });
+
+  it('cancels edit mode on cancel click', async () => {
+    storeState.currentDataset = makeDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByLabelText('Edit item 1'));
+    expect(screen.getByTestId('edit-question')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+    expect(screen.queryByTestId('edit-question')).not.toBeInTheDocument();
+  });
+
+  it('shows delete confirmation dialog when clicking delete', async () => {
+    storeState.currentDataset = makeDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByLabelText('Delete item 1'));
+
+    const alertDialog = screen.getByRole('alertdialog');
+    expect(alertDialog).toBeInTheDocument();
+    expect(within(alertDialog).getByText(/delete this item/i)).toBeInTheDocument();
+  });
+
+  it('calls deleteItem when confirming delete', async () => {
+    storeState.currentDataset = makeDetail();
+    mockDeleteItem.mockResolvedValue(undefined);
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByLabelText('Delete item 1'));
+    await user.click(screen.getByRole('button', { name: /^delete$/i }));
+
+    expect(mockDeleteItem).toHaveBeenCalledWith('ds-1', 'item-1');
+  });
+
+  it('shows add item form when clicking Add Item', async () => {
+    storeState.currentDataset = makeDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: /add item/i }));
+
+    expect(screen.getByTestId('new-item-question')).toBeInTheDocument();
+    expect(screen.getByTestId('new-item-answer')).toBeInTheDocument();
+  });
+
+  it('calls addItems when saving new item', async () => {
+    storeState.currentDataset = makeDetail();
+    mockAddItems.mockResolvedValue([]);
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: /add item/i }));
+
+    await user.type(screen.getByTestId('new-item-question'), 'New question');
+    await user.type(screen.getByTestId('new-item-answer'), 'New answer');
+
+    const saveButtons = screen.getAllByRole('button', { name: /save/i });
+    await user.click(saveButtons[0]!);
+
+    expect(mockAddItems).toHaveBeenCalledWith('ds-1', [
+      { question: 'New question', expected_answer: 'New answer' },
+    ]);
+  });
+
+  it('shows empty state when dataset has no items', () => {
+    storeState.currentDataset = makeDetail({ items: [], item_count: 0 });
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+    expect(screen.getByText(/no items yet/i)).toBeInTheDocument();
+  });
+
+  it('disables save button for new item when question is empty', async () => {
+    storeState.currentDataset = makeDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: /add item/i }));
+
+    // Save button should be disabled when question is empty
+    const saveButtons = screen.getAllByRole('button', { name: /save/i });
+    expect(saveButtons[0]).toBeDisabled();
+  });
+
+  it('cancels delete when cancel is clicked in confirmation', async () => {
+    storeState.currentDataset = makeDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByLabelText('Delete item 1'));
+    const alertDialog = screen.getByRole('alertdialog');
+    await user.click(within(alertDialog).getByRole('button', { name: /cancel/i }));
+
+    expect(mockDeleteItem).not.toHaveBeenCalled();
   });
 });
