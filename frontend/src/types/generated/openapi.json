@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "eval-studio",
-    "version": "0.1.0"
+    "version": "0.1.2"
   },
   "paths": {
     "/api/v1/health": {
@@ -733,7 +733,7 @@
           "datasets"
         ],
         "summary": "Get Dataset",
-        "description": "Get a dataset by ID with all its items.",
+        "description": "Get a dataset by ID with all its items.\n\nIf version_id is provided, returns items from that historical version snapshot\ninstead of the current live items.",
         "operationId": "get_dataset_api_v1_datasets__dataset_id__get",
         "parameters": [
           {
@@ -744,6 +744,24 @@
               "type": "string",
               "title": "Dataset Id"
             }
+          },
+          {
+            "name": "version_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return items from a specific version snapshot",
+              "title": "Version Id"
+            },
+            "description": "Return items from a specific version snapshot"
           }
         ],
         "responses": {
@@ -841,6 +859,268 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/datasets/{dataset_id}/items": {
+      "post": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Add Items",
+        "operationId": "add_items_api_v1_datasets__dataset_id__items_post",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DatasetItemCreate"
+                },
+                "title": "Items"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DatasetItemResponse"
+                  },
+                  "title": "Response Add Items Api V1 Datasets  Dataset Id  Items Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/datasets/{dataset_id}/items/{item_id}": {
+      "put": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Update Item",
+        "operationId": "update_item_api_v1_datasets__dataset_id__items__item_id__put",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetItemUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetItemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Delete Item",
+        "operationId": "delete_item_api_v1_datasets__dataset_id__items__item_id__delete",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/datasets/{dataset_id}/versions": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List Versions",
+        "description": "List all version snapshots for a dataset, newest first.",
+        "operationId": "list_versions_api_v1_datasets__dataset_id__versions_get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DatasetVersionResponse"
+                  },
+                  "title": "Response List Versions Api V1 Datasets  Dataset Id  Versions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/datasets/{dataset_id}/versions/{version_id}": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Get Version Detail",
+        "description": "Get a version snapshot with its items.",
+        "operationId": "get_version_detail_api_v1_datasets__dataset_id__versions__version_id__get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetVersionDetailResponse"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -1242,6 +1522,59 @@
         ],
         "responses": {
           "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/evaluations/{evaluation_id}/clone-and-rerun": {
+      "post": {
+        "tags": [
+          "evaluations"
+        ],
+        "summary": "Clone And Rerun Evaluation",
+        "description": "Clone an evaluation and re-run it as a new evaluation with lineage metadata.\n\nUnlike the destructive ``/rerun`` endpoint, this creates a brand-new\nevaluation preserving the original.  The new evaluation's metadata\ncontains ``is_rerun``, ``original_run_name``, ``original_run_id``, and\n``rerun_mode`` for traceability.",
+        "operationId": "clone_and_rerun_evaluation_api_v1_evaluations__evaluation_id__clone_and_rerun_post",
+        "parameters": [
+          {
+            "name": "evaluation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloneAndRerunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -2370,7 +2703,7 @@
           "rubrics"
         ],
         "summary": "Import Rubric",
-        "description": "Import a rubric from YAML content (rubric-kit format).",
+        "description": "Import a rubric from YAML content.\n\nSupports rubric-kit, Geval metric, ls-eval system config, and simple\nformats.  Optional ``name``, ``description``, ``tags``, and\n``metric_id`` fields override YAML-derived values.",
         "operationId": "import_rubric_api_v1_rubrics_import_post",
         "requestBody": {
           "content": {
@@ -2389,6 +2722,48 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RubricResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rubrics/analyze": {
+      "post": {
+        "tags": [
+          "rubrics"
+        ],
+        "summary": "Analyze Rubric",
+        "description": "Analyze YAML content and return format detection + preview.\n\nDoes not create a rubric -- returns detected format and preview\ninformation about the metrics/dimensions found.",
+        "operationId": "analyze_rubric_api_v1_rubrics_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RubricAnalyzeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RubricAnalyzeResponse"
                 }
               }
             }
@@ -4143,6 +4518,23 @@
         ],
         "title": "Body_upload_config_file_api_v1_evaluators__evaluator_id__config_files_post"
       },
+      "CloneAndRerunRequest": {
+        "properties": {
+          "rerun_mode": {
+            "type": "string",
+            "enum": [
+              "full",
+              "failures_only"
+            ],
+            "title": "Rerun Mode",
+            "description": "'full' re-runs all items; 'failures_only' re-runs only failed items.",
+            "default": "full"
+          }
+        },
+        "type": "object",
+        "title": "CloneAndRerunRequest",
+        "description": "Schema for cloning an evaluation and re-running it."
+      },
       "ComparisonResponse": {
         "properties": {
           "evaluations": {
@@ -4203,6 +4595,25 @@
         "title": "ConfigFileInfo",
         "description": "Metadata about an uploaded config file."
       },
+      "CriterionPreview": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "criterion": {
+            "type": "string",
+            "title": "Criterion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "criterion"
+        ],
+        "title": "CriterionPreview",
+        "description": "Preview of a single criterion within a dimension."
+      },
       "CrossEvaluationItemComparison": {
         "properties": {
           "dataset_item_id": {
@@ -4248,11 +4659,6 @@
             "type": "string",
             "title": "Format",
             "default": "qa_pairs"
-          },
-          "version": {
-            "type": "string",
-            "title": "Version",
-            "default": "1.0"
           },
           "tags": {
             "items": {
@@ -4321,6 +4727,17 @@
           "item_count": {
             "type": "integer",
             "title": "Item Count"
+          },
+          "latest_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Version Id"
           },
           "created_at": {
             "type": "string",
@@ -4443,6 +4860,47 @@
         "title": "DatasetItemResponse",
         "description": "Schema for a dataset item in API responses."
       },
+      "DatasetItemUpdate": {
+        "properties": {
+          "question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          },
+          "expected_answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Answer"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "title": "DatasetItemUpdate",
+        "description": "Schema for updating a dataset item (partial update)."
+      },
       "DatasetResponse": {
         "properties": {
           "id": {
@@ -4486,6 +4944,17 @@
           "item_count": {
             "type": "integer",
             "title": "Item Count"
+          },
+          "latest_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Version Id"
           },
           "created_at": {
             "type": "string",
@@ -4551,8 +5020,28 @@
               }
             ],
             "title": "Tags"
+          }
+        },
+        "type": "object",
+        "title": "DatasetUpdate",
+        "description": "Schema for updating dataset metadata."
+      },
+      "DatasetVersionDetailResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
           },
-          "version": {
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "change_note": {
             "anyOf": [
               {
                 "type": "string"
@@ -4561,12 +5050,219 @@
                 "type": "null"
               }
             ],
-            "title": "Version"
+            "title": "Change Note"
+          },
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetVersionItemResponse"
+            },
+            "type": "array",
+            "title": "Items"
           }
         },
         "type": "object",
-        "title": "DatasetUpdate",
-        "description": "Schema for updating dataset metadata."
+        "required": [
+          "id",
+          "dataset_id",
+          "created_at",
+          "change_note",
+          "item_count",
+          "items"
+        ],
+        "title": "DatasetVersionDetailResponse",
+        "description": "Schema for a dataset version with its items in API responses."
+      },
+      "DatasetVersionItemResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "expected_answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Answer"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "order_index": {
+            "type": "integer",
+            "title": "Order Index"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "question",
+          "expected_answer",
+          "metadata",
+          "order_index"
+        ],
+        "title": "DatasetVersionItemResponse",
+        "description": "Schema for a dataset version item in API responses."
+      },
+      "DatasetVersionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "change_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Note"
+          },
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "dataset_id",
+          "created_at",
+          "change_note",
+          "item_count"
+        ],
+        "title": "DatasetVersionResponse",
+        "description": "Schema for a dataset version in API responses."
+      },
+      "DetectedMetric": {
+        "properties": {
+          "metric_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metric Id"
+          },
+          "suggested_name": {
+            "type": "string",
+            "title": "Suggested Name"
+          },
+          "suggested_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Description"
+          },
+          "dimensions_preview": {
+            "items": {
+              "$ref": "#/components/schemas/DimensionPreview"
+            },
+            "type": "array",
+            "title": "Dimensions Preview"
+          },
+          "criteria_count": {
+            "type": "integer",
+            "title": "Criteria Count"
+          },
+          "pass_threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Threshold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "suggested_name",
+          "dimensions_preview",
+          "criteria_count"
+        ],
+        "title": "DetectedMetric",
+        "description": "A detected metric/rubric from analyzed YAML content."
+      },
+      "DimensionPreview": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight"
+          },
+          "criteria_count": {
+            "type": "integer",
+            "title": "Criteria Count"
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionPreview"
+            },
+            "type": "array",
+            "title": "Criteria",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "weight",
+          "criteria_count"
+        ],
+        "title": "DimensionPreview",
+        "description": "Preview of a rubric dimension for the analyze response."
       },
       "EvaluationComparisonItem": {
         "properties": {
@@ -4646,6 +5342,18 @@
             "title": "Name",
             "description": "Human-readable evaluation name."
           },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Optional description of the evaluation."
+          },
           "mode": {
             "$ref": "#/components/schemas/EvaluationMode",
             "description": "Evaluation mode: qa, rag, agent, or arena."
@@ -4680,6 +5388,21 @@
             "title": "Config",
             "description": "Mode-specific configuration.",
             "default": {}
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "User-defined key-value metadata."
           }
         },
         "type": "object",
@@ -4756,6 +5479,18 @@
             "title": "Dataset Id",
             "description": "ID of the dataset being evaluated."
           },
+          "dataset_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Version Id",
+            "description": "ID of the dataset version used for this evaluation."
+          },
           "rubric_id": {
             "anyOf": [
               {
@@ -4782,6 +5517,21 @@
             "title": "Tags",
             "description": "Tags for categorization.",
             "default": []
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "User-defined key-value metadata."
           },
           "result_count": {
             "anyOf": [
@@ -4897,6 +5647,21 @@
             ],
             "title": "Tags",
             "description": "Tags for categorization."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "User-defined key-value metadata."
           }
         },
         "type": "object",
@@ -5367,6 +6132,11 @@
           "version": {
             "type": "string",
             "title": "Version"
+          },
+          "auth_disabled": {
+            "type": "boolean",
+            "title": "Auth Disabled",
+            "default": false
           }
         },
         "type": "object",
@@ -5418,11 +6188,6 @@
             "type": "array",
             "title": "Tags",
             "default": []
-          },
-          "version": {
-            "type": "string",
-            "title": "Version",
-            "default": "1.0"
           }
         },
         "type": "object",
@@ -6453,6 +7218,43 @@
         "title": "ResultUpdate",
         "description": "Schema for updating a result. Only name and tags are editable."
       },
+      "RubricAnalyzeRequest": {
+        "properties": {
+          "yaml_content": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Yaml Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "yaml_content"
+        ],
+        "title": "RubricAnalyzeRequest",
+        "description": "Schema for analyzing rubric YAML content without importing."
+      },
+      "RubricAnalyzeResponse": {
+        "properties": {
+          "detected_format": {
+            "type": "string",
+            "title": "Detected Format"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/DetectedMetric"
+            },
+            "type": "array",
+            "title": "Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detected_format",
+          "metrics"
+        ],
+        "title": "RubricAnalyzeResponse",
+        "description": "Response from analyzing rubric YAML content."
+      },
       "RubricCreate": {
         "properties": {
           "name": {
@@ -6522,8 +7324,9 @@
           },
           "criterion": {
             "type": "string",
-            "minLength": 1,
-            "title": "Criterion"
+            "minLength": 0,
+            "title": "Criterion",
+            "default": ""
           },
           "weight": {
             "type": "number",
@@ -6534,8 +7337,7 @@
         },
         "type": "object",
         "required": [
-          "name",
-          "criterion"
+          "name"
         ],
         "title": "RubricCriterion",
         "description": "A single evaluation criterion within a rubric dimension."
@@ -6620,6 +7422,47 @@
             "type": "string",
             "minLength": 1,
             "title": "Yaml Content"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "default": []
+          },
+          "metric_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metric Id"
           }
         },
         "type": "object",
@@ -6833,6 +7676,18 @@
             "title": "Name",
             "description": "Human-readable evaluation name."
           },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Optional description of the evaluation."
+          },
           "mode": {
             "$ref": "#/components/schemas/EvaluationMode",
             "description": "Evaluation mode: qa, rag, agent, or arena."
@@ -6860,6 +7715,21 @@
             "title": "Config",
             "description": "Mode-specific configuration (e.g., contestants for arena).",
             "default": {}
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "User-defined key-value metadata."
           },
           "pass_threshold": {
             "type": "number",

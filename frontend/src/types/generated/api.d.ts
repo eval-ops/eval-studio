@@ -262,6 +262,9 @@ export interface paths {
     /**
      * Get Dataset
      * @description Get a dataset by ID with all its items.
+     *
+     *     If version_id is provided, returns items from that historical version snapshot
+     *     instead of the current live items.
      */
     get: operations['get_dataset_api_v1_datasets__dataset_id__get'];
     /**
@@ -275,6 +278,81 @@ export interface paths {
      * @description Delete a dataset and all its items.
      */
     delete: operations['delete_dataset_api_v1_datasets__dataset_id__delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/datasets/{dataset_id}/items': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Add Items */
+    post: operations['add_items_api_v1_datasets__dataset_id__items_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/datasets/{dataset_id}/items/{item_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update Item */
+    put: operations['update_item_api_v1_datasets__dataset_id__items__item_id__put'];
+    post?: never;
+    /** Delete Item */
+    delete: operations['delete_item_api_v1_datasets__dataset_id__items__item_id__delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/datasets/{dataset_id}/versions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Versions
+     * @description List all version snapshots for a dataset, newest first.
+     */
+    get: operations['list_versions_api_v1_datasets__dataset_id__versions_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/datasets/{dataset_id}/versions/{version_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Version Detail
+     * @description Get a version snapshot with its items.
+     */
+    get: operations['get_version_detail_api_v1_datasets__dataset_id__versions__version_id__get'];
+    put?: never;
+    post?: never;
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -393,6 +471,31 @@ export interface paths {
      * @description Trigger an evaluation run as a background task.
      */
     post: operations['run_evaluation_api_v1_evaluations__evaluation_id__run_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/evaluations/{evaluation_id}/clone-and-rerun': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Clone And Rerun Evaluation
+     * @description Clone an evaluation and re-run it as a new evaluation with lineage metadata.
+     *
+     *     Unlike the destructive ``/rerun`` endpoint, this creates a brand-new
+     *     evaluation preserving the original.  The new evaluation's metadata
+     *     contains ``is_rerun``, ``original_run_name``, ``original_run_id``, and
+     *     ``rerun_mode`` for traceability.
+     */
+    post: operations['clone_and_rerun_evaluation_api_v1_evaluations__evaluation_id__clone_and_rerun_post'];
     delete?: never;
     options?: never;
     head?: never;
@@ -768,9 +871,36 @@ export interface paths {
     put?: never;
     /**
      * Import Rubric
-     * @description Import a rubric from YAML content (rubric-kit format).
+     * @description Import a rubric from YAML content.
+     *
+     *     Supports rubric-kit, Geval metric, ls-eval system config, and simple
+     *     formats.  Optional ``name``, ``description``, ``tags``, and
+     *     ``metric_id`` fields override YAML-derived values.
      */
     post: operations['import_rubric_api_v1_rubrics_import_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/rubrics/analyze': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Analyze Rubric
+     * @description Analyze YAML content and return format detection + preview.
+     *
+     *     Does not create a rubric -- returns detected format and preview
+     *     information about the metrics/dimensions found.
+     */
+    post: operations['analyze_rubric_api_v1_rubrics_analyze_post'];
     delete?: never;
     options?: never;
     head?: never;
@@ -1351,6 +1481,19 @@ export interface components {
       file: string;
     };
     /**
+     * CloneAndRerunRequest
+     * @description Schema for cloning an evaluation and re-running it.
+     */
+    CloneAndRerunRequest: {
+      /**
+       * Rerun Mode
+       * @description 'full' re-runs all items; 'failures_only' re-runs only failed items.
+       * @default full
+       * @enum {string}
+       */
+      rerun_mode: 'full' | 'failures_only';
+    };
+    /**
      * ComparisonResponse
      * @description Response for comparing results across evaluations.
      */
@@ -1381,6 +1524,16 @@ export interface components {
       modified_at: string;
     };
     /**
+     * CriterionPreview
+     * @description Preview of a single criterion within a dimension.
+     */
+    CriterionPreview: {
+      /** Name */
+      name: string;
+      /** Criterion */
+      criterion: string;
+    };
+    /**
      * CrossEvaluationItemComparison
      * @description Groups results from different evaluations for a single dataset item.
      */
@@ -1404,11 +1557,6 @@ export interface components {
        * @default qa_pairs
        */
       format: string;
-      /**
-       * Version
-       * @default 1.0
-       */
-      version: string;
       /**
        * Tags
        * @default []
@@ -1441,6 +1589,8 @@ export interface components {
       source_type: string;
       /** Item Count */
       item_count: number;
+      /** Latest Version Id */
+      latest_version_id?: string | null;
       /**
        * Created At
        * Format: date-time
@@ -1487,6 +1637,20 @@ export interface components {
       order_index: number;
     };
     /**
+     * DatasetItemUpdate
+     * @description Schema for updating a dataset item (partial update).
+     */
+    DatasetItemUpdate: {
+      /** Question */
+      question?: string | null;
+      /** Expected Answer */
+      expected_answer?: string | null;
+      /** Metadata */
+      metadata?: {
+        [key: string]: unknown;
+      } | null;
+    };
+    /**
      * DatasetResponse
      * @description Schema for a dataset in list/summary API responses.
      */
@@ -1507,6 +1671,8 @@ export interface components {
       source_type: string;
       /** Item Count */
       item_count: number;
+      /** Latest Version Id */
+      latest_version_id?: string | null;
       /**
        * Created At
        * Format: date-time
@@ -1529,8 +1695,101 @@ export interface components {
       description?: string | null;
       /** Tags */
       tags?: string[] | null;
-      /** Version */
-      version?: string | null;
+    };
+    /**
+     * DatasetVersionDetailResponse
+     * @description Schema for a dataset version with its items in API responses.
+     */
+    DatasetVersionDetailResponse: {
+      /** Id */
+      id: string;
+      /** Dataset Id */
+      dataset_id: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Change Note */
+      change_note: string | null;
+      /** Item Count */
+      item_count: number;
+      /** Items */
+      items: components['schemas']['DatasetVersionItemResponse'][];
+    };
+    /**
+     * DatasetVersionItemResponse
+     * @description Schema for a dataset version item in API responses.
+     */
+    DatasetVersionItemResponse: {
+      /** Id */
+      id: string;
+      /** Question */
+      question: string;
+      /** Expected Answer */
+      expected_answer: string | null;
+      /** Metadata */
+      metadata: {
+        [key: string]: unknown;
+      } | null;
+      /** Order Index */
+      order_index: number;
+    };
+    /**
+     * DatasetVersionResponse
+     * @description Schema for a dataset version in API responses.
+     */
+    DatasetVersionResponse: {
+      /** Id */
+      id: string;
+      /** Dataset Id */
+      dataset_id: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Change Note */
+      change_note: string | null;
+      /** Item Count */
+      item_count: number;
+    };
+    /**
+     * DetectedMetric
+     * @description A detected metric/rubric from analyzed YAML content.
+     */
+    DetectedMetric: {
+      /** Metric Id */
+      metric_id?: string | null;
+      /** Suggested Name */
+      suggested_name: string;
+      /** Suggested Description */
+      suggested_description?: string | null;
+      /** Dimensions Preview */
+      dimensions_preview: components['schemas']['DimensionPreview'][];
+      /** Criteria Count */
+      criteria_count: number;
+      /** Pass Threshold */
+      pass_threshold?: number | null;
+    };
+    /**
+     * DimensionPreview
+     * @description Preview of a rubric dimension for the analyze response.
+     */
+    DimensionPreview: {
+      /** Name */
+      name: string;
+      /** Description */
+      description: string;
+      /** Weight */
+      weight: number;
+      /** Criteria Count */
+      criteria_count: number;
+      /**
+       * Criteria
+       * @default []
+       */
+      criteria: components['schemas']['CriterionPreview'][];
     };
     /**
      * EvaluationComparisonItem
@@ -1566,6 +1825,11 @@ export interface components {
        * @description Human-readable evaluation name.
        */
       name: string;
+      /**
+       * Description
+       * @description Optional description of the evaluation.
+       */
+      description?: string | null;
       /** @description Evaluation mode: qa, rag, agent, or arena. */
       mode: components['schemas']['EvaluationMode'];
       /**
@@ -1586,6 +1850,13 @@ export interface components {
       config: {
         [key: string]: unknown;
       };
+      /**
+       * Metadata
+       * @description User-defined key-value metadata.
+       */
+      metadata?: {
+        [key: string]: string;
+      } | null;
     };
     /**
      * EvaluationMode
@@ -1627,6 +1898,11 @@ export interface components {
        */
       dataset_id: string | null;
       /**
+       * Dataset Version Id
+       * @description ID of the dataset version used for this evaluation.
+       */
+      dataset_version_id?: string | null;
+      /**
        * Rubric Id
        * @description ID of the rubric used for dimension-based scoring.
        */
@@ -1644,6 +1920,13 @@ export interface components {
        * @default []
        */
       tags: string[];
+      /**
+       * Metadata
+       * @description User-defined key-value metadata.
+       */
+      metadata?: {
+        [key: string]: string;
+      } | null;
       /**
        * Result Count
        * @description Number of results (populated on detail endpoint).
@@ -1697,6 +1980,13 @@ export interface components {
        * @description Tags for categorization.
        */
       tags?: string[] | null;
+      /**
+       * Metadata
+       * @description User-defined key-value metadata.
+       */
+      metadata?: {
+        [key: string]: string;
+      } | null;
     };
     /**
      * EvaluatorResponse
@@ -1906,6 +2196,11 @@ export interface components {
       status: string;
       /** Version */
       version: string;
+      /**
+       * Auth Disabled
+       * @default false
+       */
+      auth_disabled: boolean;
     };
     /**
      * ImportRequest
@@ -1930,11 +2225,6 @@ export interface components {
        * @default []
        */
       tags: string[];
-      /**
-       * Version
-       * @default 1.0
-       */
-      version: string;
     };
     /** PaginatedResponse[ApiKeyResponse] */
     PaginatedResponse_ApiKeyResponse_: {
@@ -2321,6 +2611,24 @@ export interface components {
       tags?: string[] | null;
     };
     /**
+     * RubricAnalyzeRequest
+     * @description Schema for analyzing rubric YAML content without importing.
+     */
+    RubricAnalyzeRequest: {
+      /** Yaml Content */
+      yaml_content: string;
+    };
+    /**
+     * RubricAnalyzeResponse
+     * @description Response from analyzing rubric YAML content.
+     */
+    RubricAnalyzeResponse: {
+      /** Detected Format */
+      detected_format: string;
+      /** Metrics */
+      metrics: components['schemas']['DetectedMetric'][];
+    };
+    /**
      * RubricCreate
      * @description Schema for creating a new rubric.
      */
@@ -2351,7 +2659,10 @@ export interface components {
     RubricCriterion: {
       /** Name */
       name: string;
-      /** Criterion */
+      /**
+       * Criterion
+       * @default
+       */
       criterion: string;
       /**
        * Weight
@@ -2392,6 +2703,17 @@ export interface components {
     RubricImportRequest: {
       /** Yaml Content */
       yaml_content: string;
+      /** Name */
+      name?: string | null;
+      /** Description */
+      description?: string | null;
+      /**
+       * Tags
+       * @default []
+       */
+      tags: string[];
+      /** Metric Id */
+      metric_id?: string | null;
     };
     /**
      * RubricRefineRequest
@@ -2468,6 +2790,11 @@ export interface components {
        * @description Human-readable evaluation name.
        */
       name: string;
+      /**
+       * Description
+       * @description Optional description of the evaluation.
+       */
+      description?: string | null;
       /** @description Evaluation mode: qa, rag, agent, or arena. */
       mode: components['schemas']['EvaluationMode'];
       /**
@@ -2488,6 +2815,13 @@ export interface components {
       config: {
         [key: string]: unknown;
       };
+      /**
+       * Metadata
+       * @description User-defined key-value metadata.
+       */
+      metadata?: {
+        [key: string]: string;
+      } | null;
       /**
        * Pass Threshold
        * @description Score threshold for pass/fail verdict (0.0--1.0).
@@ -3297,7 +3631,10 @@ export interface operations {
   };
   get_dataset_api_v1_datasets__dataset_id__get: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Return items from a specific version snapshot */
+        version_id?: string | null;
+      };
       header?: never;
       path: {
         dataset_id: string;
@@ -3378,6 +3715,170 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  add_items_api_v1_datasets__dataset_id__items_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        dataset_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DatasetItemCreate'][];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DatasetItemResponse'][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  update_item_api_v1_datasets__dataset_id__items__item_id__put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        dataset_id: string;
+        item_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DatasetItemUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DatasetItemResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  delete_item_api_v1_datasets__dataset_id__items__item_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        dataset_id: string;
+        item_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  list_versions_api_v1_datasets__dataset_id__versions_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        dataset_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DatasetVersionResponse'][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_version_detail_api_v1_datasets__dataset_id__versions__version_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        dataset_id: string;
+        version_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DatasetVersionDetailResponse'];
+        };
       };
       /** @description Validation Error */
       422: {
@@ -3632,6 +4133,41 @@ export interface operations {
     responses: {
       /** @description Successful Response */
       200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['EvaluationResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  clone_and_rerun_evaluation_api_v1_evaluations__evaluation_id__clone_and_rerun_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        evaluation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CloneAndRerunRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
         headers: {
           [name: string]: unknown;
         };
@@ -4420,6 +4956,39 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['RubricResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  analyze_rubric_api_v1_rubrics_analyze_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RubricAnalyzeRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RubricAnalyzeResponse'];
         };
       };
       /** @description Validation Error */
