@@ -380,4 +380,77 @@ describe('DatasetDetailView', () => {
     render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
     expect(mockFetchVersions).toHaveBeenCalledWith('ds-1');
   });
+
+  it('calls clearVersionView when dialog is closed', async () => {
+    storeState.currentDataset = makeDetail();
+    storeState.versions = makeVersions();
+    storeState.viewingVersionId = 'v-1';
+    storeState.selectedVersion = makeVersionDetail();
+    const onOpenChange = vi.fn();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={onOpenChange} />);
+
+    // Trigger close via the Sheet's close mechanism
+    const closeButton = screen.getByRole('button', { name: /close/i });
+    await user.click(closeButton);
+
+    expect(mockClearVersionView).toHaveBeenCalled();
+  });
+
+  it('shows loading spinner in version history section', async () => {
+    storeState.currentDataset = makeDetail();
+    storeState.versions = [];
+    storeState.isLoadingVersions = true;
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    // Expand version history
+    await user.click(screen.getByTestId('toggle-version-history'));
+
+    // Should show the Loader2 spinner (an SVG with animate-spin class)
+    const versionSection = screen.getByTestId('version-history-section');
+    const spinner = versionSection.querySelector('.animate-spin');
+    expect(spinner).not.toBeNull();
+  });
+
+  it('shows "No version history" when versions list is empty and expanded', async () => {
+    storeState.currentDataset = makeDetail();
+    storeState.versions = [];
+    storeState.isLoadingVersions = false;
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByTestId('toggle-version-history'));
+
+    expect(screen.getByText('No version history')).toBeInTheDocument();
+  });
+
+  it('displays correct version count in toggle button', () => {
+    storeState.currentDataset = makeDetail();
+    storeState.versions = makeVersions();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    expect(screen.getByTestId('toggle-version-history')).toHaveTextContent('Version History (2)');
+  });
+
+  it('highlights the currently viewed version entry', async () => {
+    storeState.currentDataset = makeDetail();
+    storeState.versions = makeVersions();
+    storeState.viewingVersionId = 'v-1';
+    storeState.selectedVersion = makeVersionDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByTestId('toggle-version-history'));
+
+    const activeEntry = screen.getByTestId('version-entry-v-1');
+    expect(activeEntry.className).toContain('border-primary');
+  });
+
+  it('shows item count badge on version entries', async () => {
+    storeState.currentDataset = makeDetail();
+    storeState.versions = makeVersions();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByTestId('toggle-version-history'));
+
+    expect(screen.getByText('2 items')).toBeInTheDocument();
+    expect(screen.getByText('1 items')).toBeInTheDocument();
+  });
 });
