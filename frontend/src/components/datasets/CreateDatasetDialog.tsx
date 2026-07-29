@@ -106,7 +106,6 @@ export function CreateDatasetDialog({ open, onOpenChange }: CreateDatasetDialogP
         name,
         description: description || undefined,
         format: 'qa_pairs',
-        version: '1.0',
         tags,
         items: validItems,
       });

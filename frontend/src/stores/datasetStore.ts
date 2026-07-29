@@ -6,6 +6,8 @@ import type {
   DatasetItemCreate,
   DatasetItemUpdate,
   CreateDatasetRequest,
+  DatasetVersion,
+  DatasetVersionDetail,
   AnalyzeResponse,
   ImportRequest,
 } from '@/types';
@@ -16,6 +18,12 @@ interface DatasetStore {
   currentDataset: DatasetDetail | null;
   isLoading: boolean;
   error: string | null;
+
+  // Version history state
+  versions: DatasetVersion[];
+  selectedVersion: DatasetVersionDetail | null;
+  viewingVersionId: string | null;
+  isLoadingVersions: boolean;
 
   // Smart import state
   analysisResult: AnalyzeResponse | null;
@@ -39,6 +47,11 @@ interface DatasetStore {
   updateItem: (datasetId: string, itemId: string, data: DatasetItemUpdate) => Promise<DatasetItem>;
   deleteItem: (datasetId: string, itemId: string) => Promise<void>;
 
+  // Version history actions
+  fetchVersions: (datasetId: string) => Promise<void>;
+  fetchVersionItems: (datasetId: string, versionId: string) => Promise<void>;
+  clearVersionView: () => void;
+
   // Smart import actions
   analyzeFiles: (files: File[]) => Promise<void>;
   smartImport: (data: ImportRequest) => Promise<Dataset>;
@@ -50,6 +63,12 @@ export const useDatasetStore = create<DatasetStore>((set, get) => ({
   currentDataset: null,
   isLoading: false,
   error: null,
+
+  // Version history initial state
+  versions: [],
+  selectedVersion: null,
+  viewingVersionId: null,
+  isLoadingVersions: false,
 
   // Smart import initial state
   analysisResult: null,
@@ -169,6 +188,34 @@ export const useDatasetStore = create<DatasetStore>((set, get) => ({
       throw err;
     }
   },
+
+  fetchVersions: async (datasetId: string) => {
+    set({ isLoadingVersions: true });
+    try {
+      const versions = await api.listDatasetVersions(datasetId);
+      set({ versions, isLoadingVersions: false });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch versions';
+      set({ error: message, isLoadingVersions: false });
+    }
+  },
+
+  fetchVersionItems: async (datasetId: string, versionId: string) => {
+    set({ isLoadingVersions: true });
+    try {
+      const versionDetail = await api.getDatasetVersion(datasetId, versionId);
+      set({
+        selectedVersion: versionDetail,
+        viewingVersionId: versionId,
+        isLoadingVersions: false,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch version items';
+      set({ error: message, isLoadingVersions: false });
+    }
+  },
+
+  clearVersionView: () => set({ viewingVersionId: null, selectedVersion: null }),
 
   analyzeFiles: async (files: File[]) => {
     set({ isAnalyzing: true, error: null });

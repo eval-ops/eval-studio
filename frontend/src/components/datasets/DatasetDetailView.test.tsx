@@ -1,23 +1,27 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { DatasetDetail } from '@/types';
+import type { DatasetDetail, DatasetVersion, DatasetVersionDetail } from '@/types';
 
 const mockFetchDataset = vi.fn();
 const mockSetCurrentDataset = vi.fn();
 const mockAddItems = vi.fn();
 const mockUpdateItem = vi.fn();
 const mockDeleteItem = vi.fn();
+const mockFetchVersions = vi.fn();
+const mockFetchVersionItems = vi.fn();
+const mockClearVersionView = vi.fn();
 
 const makeDetail = (overrides: Partial<DatasetDetail> = {}): DatasetDetail => ({
   id: 'ds-1',
   name: 'Test Dataset',
   description: 'A test dataset',
   format: 'qa_pairs',
-  version: '1.0',
+  version: '2026-01-01T00:00:00+00:00',
   tags: ['test', 'qa'],
   source_type: 'upload',
   item_count: 2,
+  latest_version_id: 'v-1',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
   items: [
@@ -39,6 +43,40 @@ const makeDetail = (overrides: Partial<DatasetDetail> = {}): DatasetDetail => ({
   ...overrides,
 });
 
+const makeVersions = (): DatasetVersion[] => [
+  {
+    id: 'v-2',
+    dataset_id: 'ds-1',
+    created_at: '2026-01-02T00:00:00Z',
+    change_note: 'Added 1 item(s)',
+    item_count: 2,
+  },
+  {
+    id: 'v-1',
+    dataset_id: 'ds-1',
+    created_at: '2026-01-01T00:00:00Z',
+    change_note: 'Initial version',
+    item_count: 1,
+  },
+];
+
+const makeVersionDetail = (): DatasetVersionDetail => ({
+  id: 'v-1',
+  dataset_id: 'ds-1',
+  created_at: '2026-01-01T00:00:00Z',
+  change_note: 'Initial version',
+  item_count: 1,
+  items: [
+    {
+      id: 'vi-1',
+      question: 'What is Linux?',
+      expected_answer: 'An operating system kernel',
+      metadata: {},
+      order_index: 0,
+    },
+  ],
+});
+
 let storeState: {
   currentDataset: DatasetDetail | null;
   isLoading: boolean;
@@ -47,6 +85,13 @@ let storeState: {
   addItems: typeof mockAddItems;
   updateItem: typeof mockUpdateItem;
   deleteItem: typeof mockDeleteItem;
+  versions: DatasetVersion[];
+  selectedVersion: DatasetVersionDetail | null;
+  viewingVersionId: string | null;
+  isLoadingVersions: boolean;
+  fetchVersions: typeof mockFetchVersions;
+  fetchVersionItems: typeof mockFetchVersionItems;
+  clearVersionView: typeof mockClearVersionView;
 };
 
 vi.mock('@/stores/datasetStore', () => ({
@@ -73,6 +118,13 @@ describe('DatasetDetailView', () => {
       addItems: mockAddItems,
       updateItem: mockUpdateItem,
       deleteItem: mockDeleteItem,
+      versions: [],
+      selectedVersion: null,
+      viewingVersionId: null,
+      isLoadingVersions: false,
+      fetchVersions: mockFetchVersions,
+      fetchVersionItems: mockFetchVersionItems,
+      clearVersionView: mockClearVersionView,
     };
   });
 
@@ -91,7 +143,7 @@ describe('DatasetDetailView', () => {
     storeState.currentDataset = makeDetail();
     render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
     expect(screen.getByText('qa_pairs')).toBeInTheDocument();
-    expect(screen.getByText('1.0')).toBeInTheDocument();
+    expect(screen.getByText('2026-01-01T00:00:00+00:00')).toBeInTheDocument();
   });
 
   it('renders item list when dataset has items', () => {
@@ -239,5 +291,93 @@ describe('DatasetDetailView', () => {
     await user.click(within(alertDialog).getByRole('button', { name: /cancel/i }));
 
     expect(mockDeleteItem).not.toHaveBeenCalled();
+  });
+
+  // --- Version history tests ---
+
+  it('renders version history section', () => {
+    storeState.currentDataset = makeDetail();
+    storeState.versions = makeVersions();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    expect(screen.getByTestId('version-history-section')).toBeInTheDocument();
+    expect(screen.getByTestId('toggle-version-history')).toBeInTheDocument();
+  });
+
+  it('shows version list when toggle is clicked', async () => {
+    storeState.currentDataset = makeDetail();
+    storeState.versions = makeVersions();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByTestId('toggle-version-history'));
+
+    expect(screen.getByText('Initial version')).toBeInTheDocument();
+    expect(screen.getByText('Added 1 item(s)')).toBeInTheDocument();
+  });
+
+  it('calls fetchVersionItems when clicking a version entry', async () => {
+    storeState.currentDataset = makeDetail();
+    storeState.versions = makeVersions();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByTestId('toggle-version-history'));
+    await user.click(screen.getByTestId('version-entry-v-1'));
+
+    expect(mockFetchVersionItems).toHaveBeenCalledWith('ds-1', 'v-1');
+  });
+
+  it('shows historical version banner when viewing a version', () => {
+    storeState.currentDataset = makeDetail();
+    storeState.versions = makeVersions();
+    storeState.viewingVersionId = 'v-1';
+    storeState.selectedVersion = makeVersionDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    expect(screen.getByTestId('version-history-banner')).toBeInTheDocument();
+    expect(screen.getByText(/viewing historical version/i)).toBeInTheDocument();
+    expect(screen.getByTestId('back-to-current')).toBeInTheDocument();
+  });
+
+  it('displays version items when viewing a historical version', () => {
+    storeState.currentDataset = makeDetail();
+    storeState.versions = makeVersions();
+    storeState.viewingVersionId = 'v-1';
+    storeState.selectedVersion = makeVersionDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    // Should show the version items (only 1 item in v-1)
+    expect(screen.getByText('Items (1)')).toBeInTheDocument();
+    expect(screen.getByText('What is Linux?')).toBeInTheDocument();
+  });
+
+  it('calls clearVersionView when clicking back to current', async () => {
+    storeState.currentDataset = makeDetail();
+    storeState.versions = makeVersions();
+    storeState.viewingVersionId = 'v-1';
+    storeState.selectedVersion = makeVersionDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    await user.click(screen.getByTestId('back-to-current'));
+
+    expect(mockClearVersionView).toHaveBeenCalled();
+  });
+
+  it('hides edit/delete/add buttons when viewing historical version', () => {
+    storeState.currentDataset = makeDetail();
+    storeState.versions = makeVersions();
+    storeState.viewingVersionId = 'v-1';
+    storeState.selectedVersion = makeVersionDetail();
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+
+    // Add Item button should not be present
+    expect(screen.queryByRole('button', { name: /add item/i })).not.toBeInTheDocument();
+    // Edit/delete buttons should not be present
+    expect(screen.queryByLabelText('Edit item 1')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Delete item 1')).not.toBeInTheDocument();
+  });
+
+  it('calls fetchVersions when opening with a dataset id', () => {
+    render(<DatasetDetailView datasetId="ds-1" open={true} onOpenChange={vi.fn()} />);
+    expect(mockFetchVersions).toHaveBeenCalledWith('ds-1');
   });
 });

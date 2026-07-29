@@ -13,6 +13,8 @@ import type {
   DatasetItemCreate,
   DatasetItemUpdate,
   CreateDatasetRequest,
+  DatasetVersion,
+  DatasetVersionDetail,
   AnalyzeResponse,
   ImportRequest,
   Result,
@@ -210,6 +212,16 @@ export const api = {
     }),
   deleteDatasetItem: (datasetId: string, itemId: string) =>
     request<void>(`/api/v1/datasets/${datasetId}/items/${itemId}`, { method: 'DELETE' }),
+
+  // --- Dataset Versions ---
+  listDatasetVersions: (datasetId: string) =>
+    request<DatasetVersion[]>(`/api/v1/datasets/${datasetId}/versions`),
+  getDatasetVersion: (datasetId: string, versionId: string) =>
+    request<DatasetVersionDetail>(`/api/v1/datasets/${datasetId}/versions/${versionId}`),
+  getDatasetAtVersion: (datasetId: string, versionId: string) =>
+    request<DatasetDetail>(
+      `/api/v1/datasets/${datasetId}?version_id=${encodeURIComponent(versionId)}`,
+    ),
 
   // --- Smart Import ---
   analyzeDatasetFiles: (files: File[]) => {
