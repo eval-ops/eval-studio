@@ -111,6 +111,22 @@ describe('DatasetVersionSelector', () => {
     expect(onChange).toHaveBeenCalledWith(undefined);
   });
 
+  it('renders nothing and logs error on API failure', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockListDatasetVersions.mockRejectedValue(new Error('Network error'));
+    const onChange = vi.fn();
+
+    const { container } = render(
+      <DatasetVersionSelector datasetId="ds-1" value={undefined} onChange={onChange} />,
+    );
+
+    await waitFor(() => {
+      expect(container.innerHTML).toBe('');
+    });
+    expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch dataset versions:', expect.any(Error));
+    consoleSpy.mockRestore();
+  });
+
   it('fetches new versions when datasetId changes', async () => {
     mockListDatasetVersions.mockResolvedValue(mockVersions);
     const onChange = vi.fn();

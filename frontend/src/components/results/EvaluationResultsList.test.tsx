@@ -215,6 +215,32 @@ describe('EvaluationResultsList', () => {
     expect(starButtons.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('displays version badge when datasetVersion is present', () => {
+    const rowsWithVersion: EvaluationResultRow[] = [
+      {
+        ...mockRows[0]!,
+        datasetVersion: {
+          id: 'ver-1',
+          created_at: '2026-06-15T10:00:00Z',
+          change_note: 'Snapshot v1',
+          item_count: 10,
+        },
+      },
+    ];
+
+    render(<EvaluationResultsList rows={rowsWithVersion} />);
+    // The version badge shows a date-based label like "v6/15/2026"
+    const badge = screen.getByTitle('Snapshot v1');
+    expect(badge).toBeInTheDocument();
+  });
+
+  it('does not display version badge when datasetVersion is absent', () => {
+    render(<EvaluationResultsList rows={mockRows} />);
+    // None of the mock rows have datasetVersion, so no version badge should be rendered
+    const badges = screen.queryAllByTitle(/Snapshot|Dataset version/);
+    expect(badges.length).toBe(0);
+  });
+
   it('disables checkbox for incompatible rows', () => {
     mockStoreWith({
       selectedEvaluationIds: ['e1'],

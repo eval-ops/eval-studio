@@ -409,6 +409,129 @@ class TestEvaluationResponseVersionSummary:
 
 
 @pytest.mark.asyncio
+class TestCreateEvaluationVersionValidationEdgeCases:
+    """Tests for edge cases in dataset_version_id validation."""
+
+    async def test_version_id_without_dataset_id_returns_422(self, client, dataset_with_versions):
+        """dataset_version_id requires dataset_id to be set."""
+        _, _, version, _ = dataset_with_versions
+
+        resp = await client.post(
+            "/api/v1/evaluations",
+            json={
+                "name": "Version without dataset",
+                "mode": "qa",
+                "dataset_version_id": version.id,
+                "config": {},
+            },
+        )
+        assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+class TestListEvaluationsVersionSummary:
+    """Tests for version summary in list evaluations response."""
+
+    async def test_list_evaluations_includes_version_summary(self, client, dataset_with_versions):
+        """List endpoint should include dataset_version summary for versioned evaluations."""
+        dataset, _, version, _ = dataset_with_versions
+
+        resp = await client.post(
+            "/api/v1/evaluations",
+            json={
+                "name": "Listed versioned eval",
+                "mode": "qa",
+                "dataset_id": dataset.id,
+                "dataset_version_id": version.id,
+                "config": {},
+            },
+        )
+        assert resp.status_code == 201
+
+        list_resp = await client.get("/api/v1/evaluations")
+        assert list_resp.status_code == 200
+        data = list_resp.json()
+
+        versioned_items = [item for item in data["items"] if item["dataset_version_id"] == version.id]
+        assert len(versioned_items) >= 1
+        item = versioned_items[0]
+        assert item["dataset_version"] is not None
+        assert item["dataset_version"]["id"] == version.id
+        assert item["dataset_version"]["change_note"] == "Snapshot v1"
+        assert item["dataset_version"]["item_count"] == 2
+
+    async def test_list_evaluations_no_version_has_null_summary(self, client, dataset_with_versions):
+        """List endpoint should have null dataset_version for unversioned evaluations."""
+        dataset, _, _, _ = dataset_with_versions
+
+        resp = await client.post(
+            "/api/v1/evaluations",
+            json={
+                "name": "Listed no-version eval",
+                "mode": "qa",
+                "dataset_id": dataset.id,
+                "config": {},
+            },
+        )
+        assert resp.status_code == 201
+        eval_id = resp.json()["id"]
+
+        list_resp = await client.get("/api/v1/evaluations")
+        assert list_resp.status_code == 200
+        data = list_resp.json()
+
+        target_items = [item for item in data["items"] if item["id"] == eval_id]
+        assert len(target_items) == 1
+        assert target_items[0]["dataset_version"] is None
+
+
+@pytest.mark.asyncio
+class TestCloneAndRerunPreservesVersion:
+    """Tests for clone-and-rerun preserving dataset_version_id."""
+
+    async def test_clone_rerun_preserves_dataset_version_id(
+        self, client, db_session: AsyncSession, dataset_with_versions
+    ):
+        """Clone-and-rerun should carry over dataset_version_id from the original evaluation."""
+        dataset, _, version, _ = dataset_with_versions
+
+        # Create an evaluation with a specific version
+        create_resp = await client.post(
+            "/api/v1/evaluations",
+            json={
+                "name": "Original versioned eval",
+                "mode": "qa",
+                "dataset_id": dataset.id,
+                "dataset_version_id": version.id,
+                "config": {
+                    "model_endpoint": {"default_model": "test-model"},
+                    "judge_config": {"provider_id": "__test__"},
+                },
+            },
+        )
+        assert create_resp.status_code == 201
+        original_id = create_resp.json()["id"]
+
+        # Mark evaluation as completed (clone-and-rerun requires completed/failed status)
+        result = await db_session.execute(select(Evaluation).where(Evaluation.id == original_id))
+        evaluation = result.scalar_one()
+        evaluation.status = "completed"
+        await db_session.commit()
+
+        # Clone and rerun (clone-and-rerun creates a new evaluation)
+        rerun_resp = await client.post(
+            f"/api/v1/evaluations/{original_id}/clone-and-rerun",
+            json={"rerun_mode": "full"},
+        )
+        assert rerun_resp.status_code == 201
+        rerun_data = rerun_resp.json()
+        assert rerun_data["dataset_version_id"] == version.id
+        assert rerun_data["dataset_id"] == dataset.id
+        # Verify it's a new evaluation, not the same one
+        assert rerun_data["id"] != original_id
+
+
+@pytest.mark.asyncio
 class TestComparisonVersionInfo:
     """Tests for version info in comparison responses."""
 
