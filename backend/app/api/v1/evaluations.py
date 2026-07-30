@@ -210,6 +210,14 @@ async def list_evaluations(
                 "pass_rate": pass_rate,
             }
 
+    # Batch query for dataset version summaries
+    version_ids = {e.dataset_version_id for e in evaluations if e.dataset_version_id}
+    version_map: dict[str, DatasetVersionSummary] = {}
+    if version_ids:
+        ver_result = await db.execute(select(DatasetVersion).where(DatasetVersion.id.in_(version_ids)))
+        for v in ver_result.scalars().all():
+            version_map[v.id] = DatasetVersionSummary.model_validate(v)
+
     items = []
     for e in evaluations:
         response = EvaluationResponse.model_validate(e)
@@ -220,6 +228,8 @@ async def list_evaluations(
             response.pass_rate = stats["pass_rate"]
         else:
             response.result_count = 0
+        if e.dataset_version_id and e.dataset_version_id in version_map:
+            response.dataset_version = version_map[e.dataset_version_id]
         items.append(response)
 
     return PaginatedResponse[EvaluationResponse](
@@ -522,6 +532,7 @@ async def clone_and_rerun_evaluation(
         mode=evaluation.mode,
         status=EvaluationStatus.PENDING,
         dataset_id=evaluation.dataset_id,
+        dataset_version_id=evaluation.dataset_version_id,
         rubric_id=evaluation.rubric_id,
         config=new_config,
         tags=list(evaluation.tags or []),

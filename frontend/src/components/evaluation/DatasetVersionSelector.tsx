@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   Select,
@@ -38,11 +38,11 @@ export function DatasetVersionSelector({
 }: DatasetVersionSelectorProps): React.JSX.Element | null {
   const [versions, setVersions] = useState<DatasetVersion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const currentDatasetId = useRef(datasetId);
 
   useEffect(() => {
-    currentDatasetId.current = datasetId;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset loading for new fetch
+    setIsLoading(true);
 
     api
       .listDatasetVersions(datasetId)
@@ -52,7 +52,8 @@ export function DatasetVersionSelector({
           setIsLoading(false);
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        console.error('Failed to fetch dataset versions:', err);
         if (!cancelled) {
           setVersions([]);
           setIsLoading(false);
