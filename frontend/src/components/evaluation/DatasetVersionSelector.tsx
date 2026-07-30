@@ -18,17 +18,8 @@ interface DatasetVersionSelectorProps {
   onChange: (versionId: string | undefined) => void;
 }
 
-function formatRelativeDate(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return 'today';
-  if (diffDays === 1) return 'yesterday';
-  if (diffDays < 7) return `${diffDays}d ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-  return date.toLocaleDateString();
+function formatTimestamp(iso: string): string {
+  return new Date(iso).toLocaleString();
 }
 
 export function DatasetVersionSelector({
@@ -82,8 +73,8 @@ export function DatasetVersionSelector({
         <SelectItem value={LATEST_VALUE}>Latest (auto)</SelectItem>
         {versions.map((v) => (
           <SelectItem key={v.id} value={v.id}>
-            {formatRelativeDate(v.created_at)}
-            {v.change_note ? ` - ${v.change_note.slice(0, 40)}` : ''}
+            {formatTimestamp(v.created_at)}
+            {v.change_note ? ` - ${v.change_note}` : ''}
             {` (${v.item_count} items)`}
           </SelectItem>
         ))}
