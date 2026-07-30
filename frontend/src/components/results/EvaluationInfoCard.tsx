@@ -85,11 +85,6 @@ export function EvaluationInfoCard({
               ({evaluation.dataset_version.item_count} items)
             </span>
           </div>
-        ) : evaluation.dataset_id ? (
-          <div className="flex items-center gap-1.5 rounded-[8px] bg-surface-2 px-2.5 py-1.5 text-[11px] text-text-3">
-            <GitBranch className="h-3 w-3 shrink-0" />
-            <span>Live items (no version)</span>
-          </div>
         ) : null}
 
         {/* Timestamps + item count */}

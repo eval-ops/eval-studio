@@ -49,6 +49,12 @@ async def _create_validated_evaluation(payload: EvaluationCreate | RunRequest, d
             raise NotFoundException("Dataset", payload.dataset_id)
 
     dataset_version_id = getattr(payload, "dataset_version_id", None)
+    logger.info(
+        "evaluation.create_version_check",
+        payload_type=type(payload).__name__,
+        dataset_version_id=dataset_version_id,
+        dataset_id=payload.dataset_id,
+    )
     if dataset_version_id:
         if not payload.dataset_id:
             raise ValidationException("dataset_version_id requires dataset_id to be set.")
