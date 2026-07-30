@@ -29,6 +29,9 @@ class EvaluationCreate(BaseModel):
     description: str | None = Field(default=None, description="Optional description of the evaluation.")
     mode: EvaluationMode = Field(description="Evaluation mode: qa, rag, agent, or arena.")
     dataset_id: str | None = Field(default=None, description="ID of the dataset to evaluate against.")
+    dataset_version_id: str | None = Field(
+        default=None, description="ID of a specific dataset version to use. Must belong to dataset_id."
+    )
     rubric_id: str | None = Field(default=None, description="ID of the rubric to use for dimension-based scoring.")
     config: dict[str, Any] = Field(default={}, description="Mode-specific configuration.")
     metadata: dict[str, str] | None = Field(default=None, description="User-defined key-value metadata.")
@@ -52,6 +55,17 @@ class EvaluationUpdate(BaseModel):
     metadata: dict[str, str] | None = Field(default=None, description="User-defined key-value metadata.")
 
 
+class DatasetVersionSummary(BaseModel):
+    """Compact summary of a dataset version for embedding in evaluation responses."""
+
+    id: str
+    created_at: datetime
+    change_note: str | None = None
+    item_count: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class EvaluationResponse(BaseModel):
     """Schema for an evaluation in API responses."""
 
@@ -64,6 +78,9 @@ class EvaluationResponse(BaseModel):
     dataset_id: str | None = Field(description="ID of the dataset being evaluated.")
     dataset_version_id: str | None = Field(
         default=None, description="ID of the dataset version used for this evaluation."
+    )
+    dataset_version: DatasetVersionSummary | None = Field(
+        default=None, description="Summary of the dataset version used, if any."
     )
     rubric_id: str | None = Field(default=None, description="ID of the rubric used for dimension-based scoring.")
     config: dict[str, Any] = Field(description="Mode-specific configuration.")

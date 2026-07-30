@@ -13,7 +13,7 @@ from app.core.database import async_session_factory, get_db
 from app.core.exceptions import ConflictException, NotFoundException, NotImplementedException, ValidationException
 from app.core.security import require_auth
 from app.models.artifact import Artifact
-from app.models.dataset import Dataset
+from app.models.dataset import Dataset, DatasetVersion
 from app.models.evaluation import Evaluation
 from app.models.result import Result
 from app.models.rubric import Rubric
@@ -21,6 +21,7 @@ from app.models.session import Session
 from app.schemas.common import PaginatedResponse
 from app.schemas.evaluation import (
     CloneAndRerunRequest,
+    DatasetVersionSummary,
     EvaluationCreate,
     EvaluationMode,
     EvaluationResponse,
@@ -47,6 +48,19 @@ async def _create_validated_evaluation(payload: EvaluationCreate | RunRequest, d
         if not result.scalar_one_or_none():
             raise NotFoundException("Dataset", payload.dataset_id)
 
+    dataset_version_id = getattr(payload, "dataset_version_id", None)
+    if dataset_version_id:
+        if not payload.dataset_id:
+            raise ValidationException("dataset_version_id requires dataset_id to be set.")
+        ver_result = await db.execute(select(DatasetVersion).where(DatasetVersion.id == dataset_version_id))
+        version = ver_result.scalar_one_or_none()
+        if not version:
+            raise ValidationException(f"Dataset version '{dataset_version_id}' not found.")
+        if version.dataset_id != payload.dataset_id:
+            raise ValidationException(
+                f"Dataset version '{dataset_version_id}' does not belong to dataset '{payload.dataset_id}'."
+            )
+
     rubric_id = getattr(payload, "rubric_id", None)
     if rubric_id:
         result = await db.execute(select(Rubric).where(Rubric.id == rubric_id))
@@ -66,6 +80,7 @@ async def _create_validated_evaluation(payload: EvaluationCreate | RunRequest, d
         mode=payload.mode.value,
         status=EvaluationStatus.PENDING,
         dataset_id=payload.dataset_id,
+        dataset_version_id=dataset_version_id,
         rubric_id=rubric_id,
         config=payload.config,
         user_metadata=payload.metadata,
@@ -114,6 +129,15 @@ async def _cleanup_artifacts(evaluation_id: str, db: AsyncSession) -> None:
     await db.execute(delete(Artifact).where(Artifact.evaluation_id == evaluation_id))
 
 
+async def _populate_version_summary(evaluation: Evaluation, response: EvaluationResponse, db: AsyncSession) -> None:
+    """Attach DatasetVersionSummary to the response if evaluation has a pinned version."""
+    if evaluation.dataset_version_id:
+        ver_result = await db.execute(select(DatasetVersion).where(DatasetVersion.id == evaluation.dataset_version_id))
+        version = ver_result.scalar_one_or_none()
+        if version:
+            response.dataset_version = DatasetVersionSummary.model_validate(version)
+
+
 def _validate_evaluator_id(config: dict) -> None:
     """Raise ValidationException if config.evaluator_id is present but unknown."""
     evaluator_id = config.get("evaluator_id")
@@ -129,7 +153,9 @@ async def create_evaluation(payload: EvaluationCreate, db: AsyncSession = Depend
     """Create a new evaluation."""
     evaluation = await _create_validated_evaluation(payload, db)
     logger.info("evaluation.created", id=evaluation.id, name=evaluation.name, mode=evaluation.mode)
-    return EvaluationResponse.model_validate(evaluation)
+    response = EvaluationResponse.model_validate(evaluation)
+    await _populate_version_summary(evaluation, response, db)
+    return response
 
 
 @router.get("", response_model=PaginatedResponse[EvaluationResponse])
@@ -303,6 +329,7 @@ async def get_evaluation(evaluation_id: str, db: AsyncSession = Depends(get_db))
 
     response = EvaluationResponse.model_validate(evaluation)
     response.result_count = result_count
+    await _populate_version_summary(evaluation, response, db)
     return response
 
 
