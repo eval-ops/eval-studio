@@ -40,6 +40,7 @@ export default function Results() {
         meanScore: evaluation.average_score ?? 0,
         createdAt: evaluation.created_at,
         datasetId: evaluation.dataset_id,
+        datasetVersion: evaluation.dataset_version,
         config: evaluation.config,
         metadata: evaluation.metadata,
       };

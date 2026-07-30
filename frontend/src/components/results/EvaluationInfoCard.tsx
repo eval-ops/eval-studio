@@ -8,7 +8,7 @@ import {
   formatMonoTimestamp,
 } from '@/lib/designUtils';
 import { extractConfigMetadata, mergeMetadata, filterSensitiveKeys } from '@/lib/metadataUtils';
-import { Info, RotateCcw } from 'lucide-react';
+import { GitBranch, Info, RotateCcw } from 'lucide-react';
 import type { Evaluation } from '@/types';
 
 interface EvaluationInfoCardProps {
@@ -72,6 +72,25 @@ export function EvaluationInfoCard({
             </span>
           </div>
         )}
+
+        {/* Dataset Version */}
+        {evaluation.dataset_version ? (
+          <div className="flex items-center gap-1.5 rounded-[8px] bg-surface-2 px-2.5 py-1.5 text-[11px] text-text-2">
+            <GitBranch className="h-3 w-3 shrink-0" />
+            <span>
+              Version: {new Date(evaluation.dataset_version.created_at).toLocaleDateString()}
+              {evaluation.dataset_version.change_note && (
+                <> &mdash; {evaluation.dataset_version.change_note}</>
+              )}{' '}
+              ({evaluation.dataset_version.item_count} items)
+            </span>
+          </div>
+        ) : evaluation.dataset_id ? (
+          <div className="flex items-center gap-1.5 rounded-[8px] bg-surface-2 px-2.5 py-1.5 text-[11px] text-text-3">
+            <GitBranch className="h-3 w-3 shrink-0" />
+            <span>Live items (no version)</span>
+          </div>
+        ) : null}
 
         {/* Timestamps + item count */}
         <div className="space-y-1">

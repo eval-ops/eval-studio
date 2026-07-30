@@ -62,6 +62,7 @@ export interface AggregateMetrics {
 export interface EvaluationComparisonItem {
   evaluation_id: string;
   evaluation_name: string;
+  dataset_version_id: string | null;
   total_items: number;
   passed_count: number;
   failed_count: number;

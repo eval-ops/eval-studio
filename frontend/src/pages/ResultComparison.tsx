@@ -70,6 +70,11 @@ function LeaderboardTable({
                           Reference
                         </Badge>
                       )}
+                      {evaluation.dataset_version_id && (
+                        <Badge variant="secondary" className="text-[9px]">
+                          versioned
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>{evaluation.average_score.toFixed(3)}</TableCell>

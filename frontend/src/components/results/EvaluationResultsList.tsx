@@ -45,7 +45,13 @@ import {
 import { cn } from '@/lib/utils';
 import { extractConfigMetadata, mergeMetadata, filterSensitiveKeys } from '@/lib/metadataUtils';
 import { MetadataBadges } from '@/components/ui/MetadataBadges';
-import type { Evaluation, EvaluationConfig, EvaluationMode, EvaluationStatus } from '@/types';
+import type {
+  DatasetVersionSummary,
+  Evaluation,
+  EvaluationConfig,
+  EvaluationMode,
+  EvaluationStatus,
+} from '@/types';
 
 export interface EvaluationResultRow {
   evaluationId: string;
@@ -58,6 +64,7 @@ export interface EvaluationResultRow {
   meanScore: number;
   createdAt: string;
   datasetId: string | null;
+  datasetVersion?: DatasetVersionSummary | null;
   config?: EvaluationConfig;
   metadata?: Record<string, string> | null;
 }
@@ -204,11 +211,22 @@ export function EvaluationResultsList({ rows }: EvaluationResultsListProps) {
             ? filterSensitiveKeys(extractConfigMetadata(row.original.config))
             : {};
           const merged = mergeMetadata(configMeta, row.original.metadata);
+          const version = row.original.datasetVersion;
           return (
             <div className="space-y-1">
-              <span className="font-medium" title={row.original.name}>
-                {row.original.name}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-medium" title={row.original.name}>
+                  {row.original.name}
+                </span>
+                {version && (
+                  <span
+                    className="rounded-[5px] bg-blue-50 px-1.5 py-0.5 text-[9px] font-medium text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"
+                    title={version.change_note ?? 'Dataset version'}
+                  >
+                    v{new Date(version.created_at).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
               {row.original.metadata?.is_rerun === 'true' && (
                 <span className="text-[10px] text-muted-foreground">
                   Re-run of: {row.original.metadata?.original_run_name}

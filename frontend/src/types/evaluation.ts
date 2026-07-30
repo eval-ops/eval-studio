@@ -4,6 +4,13 @@ export type EvaluationMode = components['schemas']['EvaluationMode'];
 export type EvaluationStatus = components['schemas']['EvaluationStatus'];
 export type ProviderModel = components['schemas']['ProviderModelResponse'];
 
+export interface DatasetVersionSummary {
+  id: string;
+  created_at: string;
+  change_note: string | null;
+  item_count: number;
+}
+
 export interface Evaluation {
   id: string;
   name: string;
@@ -12,8 +19,10 @@ export interface Evaluation {
   status: EvaluationStatus;
   error?: string | null;
   dataset_id: string | null;
+  dataset_version_id: string | null;
   rubric_id: string | null;
   config: EvaluationConfig;
+  dataset_version?: DatasetVersionSummary | null;
   result_count: number | null;
   average_score: number | null;
   pass_rate: number | null;
@@ -114,6 +123,7 @@ export interface CreateEvaluationRequest {
   description?: string;
   mode: EvaluationMode;
   dataset_id?: string;
+  dataset_version_id?: string;
   rubric_id?: string;
   config: EvaluationConfig;
   metadata?: Record<string, string>;

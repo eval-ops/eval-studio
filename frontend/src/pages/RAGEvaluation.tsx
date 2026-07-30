@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Database, Play } from 'lucide-react';
 import { EvaluatorSelector } from '@/components/evaluation/EvaluatorSelector';
 import { DatasetSelector } from '@/components/evaluation/DatasetSelector';
+import { DatasetVersionSelector } from '@/components/evaluation/DatasetVersionSelector';
 import { RAGEndpointConfig } from '@/components/evaluation/RAGEndpointConfig';
 import type { RAGEndpointSettings } from '@/types';
 import { RAGMetricsSelector, ALL_RAG_METRICS } from '@/components/evaluation/RAGMetricsSelector';
@@ -30,6 +31,7 @@ import type {
 
 export default function RAGEvaluation() {
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>();
+  const [selectedVersionId, setSelectedVersionId] = useState<string>();
   const [ragEndpoint, setRagEndpoint] = useState<RAGEndpointSettings>();
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(ALL_RAG_METRICS);
   const [judgeConfig, setJudgeConfig] = useState<JudgeReference>();
@@ -40,6 +42,11 @@ export default function RAGEvaluation() {
   const [runTitle, setRunTitle] = useState('');
   const [runDescription, setRunDescription] = useState('');
   const [runMetadata, setRunMetadata] = useState<{ key: string; value: string }[]>([]);
+
+  const handleDatasetChange = useCallback((datasetId: string) => {
+    setSelectedDatasetId(datasetId);
+    setSelectedVersionId(undefined);
+  }, []);
 
   const { selectedEvaluatorId } = useEvaluatorStore();
   const { results, fetchAggregateMetrics } = useResultStore();
@@ -115,6 +122,7 @@ export default function RAGEvaluation() {
       ...(runDescription.trim() && { description: runDescription.trim() }),
       mode: 'rag',
       dataset_id: selectedDatasetId,
+      ...(selectedVersionId && { dataset_version_id: selectedVersionId }),
       rubric_id: judgeConfig.rubric_id,
       config: {
         model_endpoint: {
@@ -142,6 +150,7 @@ export default function RAGEvaluation() {
   const handleNewEvaluation = () => {
     reset();
     setSelectedDatasetId(undefined);
+    setSelectedVersionId(undefined);
     setRagEndpoint(undefined);
     setSelectedMetrics(ALL_RAG_METRICS);
     setJudgeConfig(undefined);
@@ -190,7 +199,14 @@ export default function RAGEvaluation() {
                 <h2 className="text-[10.5px] font-semibold tracking-[0.06em] uppercase text-text-3">
                   Dataset
                 </h2>
-                <DatasetSelector value={selectedDatasetId} onChange={setSelectedDatasetId} />
+                <DatasetSelector value={selectedDatasetId} onChange={handleDatasetChange} />
+                {selectedDatasetId && (
+                  <DatasetVersionSelector
+                    datasetId={selectedDatasetId}
+                    value={selectedVersionId}
+                    onChange={setSelectedVersionId}
+                  />
+                )}
               </div>
               <RAGEndpointConfig value={ragEndpoint} onChange={handleRagEndpointChange} />
             </div>
