@@ -286,9 +286,10 @@ async def test_ws_unknown_message_type(ws_setup):
 @pytest.fixture
 def _auth_enabled():
     """Enable auth for WebSocket auth tests."""
+    original = settings.auth_disabled
     settings.auth_disabled = False
     yield
-    settings.auth_disabled = True
+    settings.auth_disabled = original
 
 
 @pytest.mark.asyncio
