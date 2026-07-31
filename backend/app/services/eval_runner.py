@@ -21,7 +21,7 @@ from app.adapters.factory import create_adapter_from_config
 from app.core.config import settings
 from app.core.exceptions import sanitize_error_for_client
 from app.core.rate_limiter import AsyncRateLimiter
-from app.models.dataset import Dataset, DatasetItem
+from app.models.dataset import Dataset, DatasetVersionItem
 from app.models.evaluation import Evaluation
 from app.models.result import Result
 from app.models.rubric import Rubric
@@ -42,10 +42,21 @@ logger = structlog.get_logger()
 
 
 @dataclass
+class DatasetItemView:
+    """Lightweight view of a dataset item (live or versioned) for the eval runner."""
+
+    id: str | None
+    question: str
+    expected_answer: str | None
+    metadata_: dict | None = None
+    order_index: int = 0
+
+
+@dataclass
 class TaskSpec:
     """A single unit of work for the evaluation fan-out."""
 
-    item: DatasetItem
+    item: DatasetItemView
     index: int
     contestant_name: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
@@ -67,7 +78,7 @@ class ItemOutcome:
 @runtime_checkable
 class ModeRunner(Protocol):
     async def prepare(self, evaluation: Evaluation, config: dict, evaluation_id: str) -> None: ...
-    def tasks(self, items: list[DatasetItem]) -> list[TaskSpec]: ...
+    def tasks(self, items: list[DatasetItemView]) -> list[TaskSpec]: ...
     async def run_item(
         self, spec: TaskSpec, adapter: EvaluationAdapter, judge_params: JudgeConfigParams, evaluation_id: str
     ) -> ItemOutcome: ...
@@ -121,9 +132,53 @@ async def run_evaluation(evaluation_id: str, db: AsyncSession) -> None:
             await _fail(evaluation, db, f"Dataset '{evaluation.dataset_id}' not found")
             return
 
-        # 4b. Pin dataset version
-        if dataset.latest_version_id:
+        # 4b. Resolve dataset version and load items
+        use_version_items = False
+        if evaluation.dataset_version_id:
+            use_version_items = True
+        elif dataset.latest_version_id:
             evaluation.dataset_version_id = dataset.latest_version_id
+            use_version_items = True
+
+        if use_version_items:
+            vi_result = await db.execute(
+                select(DatasetVersionItem)
+                .where(DatasetVersionItem.version_id == evaluation.dataset_version_id)
+                .order_by(DatasetVersionItem.order_index)
+            )
+            version_items_raw = vi_result.scalars().all()
+            dataset_items: list[DatasetItemView] = [
+                DatasetItemView(
+                    id=None,
+                    question=vi.question,
+                    expected_answer=vi.expected_answer,
+                    metadata_=vi.metadata_,
+                    order_index=vi.order_index,
+                )
+                for vi in version_items_raw
+            ]
+            logger.info(
+                "evaluation.dataset_items_loaded",
+                source="version_snapshot",
+                version_id=evaluation.dataset_version_id,
+                item_count=len(dataset_items),
+            )
+        else:
+            dataset_items = [
+                DatasetItemView(
+                    id=item.id,
+                    question=item.question,
+                    expected_answer=item.expected_answer,
+                    metadata_=item.metadata_,
+                    order_index=item.order_index,
+                )
+                for item in sorted(dataset.items, key=lambda i: i.order_index)
+            ]
+            logger.info(
+                "evaluation.dataset_items_loaded",
+                source="live_items",
+                item_count=len(dataset_items),
+            )
 
         # 5. Load rubric
         config = evaluation.config or {}
@@ -170,7 +225,7 @@ async def run_evaluation(evaluation_id: str, db: AsyncSession) -> None:
             return
 
         # 8. Build task specs and fan out
-        items = sorted(dataset.items, key=lambda i: i.order_index)
+        items = dataset_items
 
         # Optional: filter to specific dataset items (used by clone-and-rerun failures_only)
         dataset_item_ids = config.get("dataset_item_ids")
@@ -367,7 +422,7 @@ class QARunner:
                 message=f"Rate limiting enabled: {len(self._resolved.rate_limits)} rule(s)",
             )
 
-    def tasks(self, items: list[DatasetItem]) -> list[TaskSpec]:
+    def tasks(self, items: list[DatasetItemView]) -> list[TaskSpec]:
         return [TaskSpec(item=item, index=i) for i, item in enumerate(items)]
 
     async def run_item(
@@ -461,7 +516,7 @@ class ArenaRunner:
                 details={"model": resolved_model.model, "api_base": resolved_model.api_base},
             )
 
-    def tasks(self, items: list[DatasetItem]) -> list[TaskSpec]:
+    def tasks(self, items: list[DatasetItemView]) -> list[TaskSpec]:
         specs = []
         for contestant_name, resolved_model, contestant_params in self._resolved_contestants:
             for idx, item in enumerate(items):
@@ -598,7 +653,7 @@ class RAGRunner:
         self._rag_adapter = create_rag_adapter(rag_adapter_config)
         self._rag_metrics = rag_endpoint.get("metrics", ["faithfulness", "relevancy"])
 
-    def tasks(self, items: list[DatasetItem]) -> list[TaskSpec]:
+    def tasks(self, items: list[DatasetItemView]) -> list[TaskSpec]:
         return [TaskSpec(item=item, index=i) for i, item in enumerate(items)]
 
     async def run_item(

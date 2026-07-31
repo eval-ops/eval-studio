@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, MessageSquare, Play } from 'lucide-react';
 import { EvaluatorSelector } from '@/components/evaluation/EvaluatorSelector';
 import { DatasetSelector } from '@/components/evaluation/DatasetSelector';
+import { DatasetVersionSelector } from '@/components/evaluation/DatasetVersionSelector';
 import { ProviderSelector } from '@/components/evaluation/ProviderSelector';
 import { JudgeConfigPanel } from '@/components/evaluation/JudgeConfigPanel';
 import { EvaluationProgress } from '@/components/evaluation/EvaluationProgress';
@@ -29,6 +30,7 @@ import type {
 
 export default function QAEvaluation() {
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>();
+  const [selectedVersionId, setSelectedVersionId] = useState<string>();
   const [modelEndpoint, setModelEndpoint] = useState<ModelEndpoint>();
   const [judgeConfig, setJudgeConfig] = useState<JudgeReference>();
   const [modelParams, setModelParams] = useState<LLMParams>({});
@@ -39,6 +41,11 @@ export default function QAEvaluation() {
   const [runTitle, setRunTitle] = useState('');
   const [runDescription, setRunDescription] = useState('');
   const [runMetadata, setRunMetadata] = useState<{ key: string; value: string }[]>([]);
+
+  const handleDatasetChange = useCallback((datasetId: string) => {
+    setSelectedDatasetId(datasetId);
+    setSelectedVersionId(undefined);
+  }, []);
 
   const { selectedEvaluatorId } = useEvaluatorStore();
   const { results, fetchAggregateMetrics } = useResultStore();
@@ -96,6 +103,7 @@ export default function QAEvaluation() {
       ...(runDescription.trim() && { description: runDescription.trim() }),
       mode: 'qa',
       dataset_id: selectedDatasetId,
+      ...(selectedVersionId && { dataset_version_id: selectedVersionId }),
       rubric_id: judgeConfig.rubric_id,
       config: {
         model_endpoint: modelEndpoint,
@@ -118,6 +126,7 @@ export default function QAEvaluation() {
   const handleNewEvaluation = () => {
     reset();
     setSelectedDatasetId(undefined);
+    setSelectedVersionId(undefined);
     setModelEndpoint(undefined);
     setJudgeConfig(undefined);
     setModelParams({});
@@ -164,7 +173,14 @@ export default function QAEvaluation() {
                 <h2 className="text-[10.5px] font-semibold tracking-[0.06em] uppercase text-text-3">
                   Dataset
                 </h2>
-                <DatasetSelector value={selectedDatasetId} onChange={setSelectedDatasetId} />
+                <DatasetSelector value={selectedDatasetId} onChange={handleDatasetChange} />
+                {selectedDatasetId && (
+                  <DatasetVersionSelector
+                    datasetId={selectedDatasetId}
+                    value={selectedVersionId}
+                    onChange={setSelectedVersionId}
+                  />
+                )}
               </div>
               <ProviderSelector value={modelEndpoint} onChange={handleModelEndpointChange} />
             </div>

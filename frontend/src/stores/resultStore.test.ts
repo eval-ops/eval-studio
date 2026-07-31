@@ -391,6 +391,7 @@ describe('resultStore', () => {
           {
             evaluation_id: 'e1',
             evaluation_name: 'Eval A',
+            dataset_version_id: null,
             total_items: 5,
             passed_count: 4,
             failed_count: 1,

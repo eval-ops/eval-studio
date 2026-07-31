@@ -299,6 +299,46 @@ describe('ResultComparison', () => {
     expect(screen.queryByText(/per-item comparison/i)).not.toBeInTheDocument();
   });
 
+  it('shows versioned badge when evaluation has dataset_version_id', () => {
+    mockStoreWith({
+      comparisonData: {
+        evaluations: [
+          {
+            evaluation_id: 'e1',
+            evaluation_name: 'Versioned Eval',
+            dataset_version_id: 'ver-abc',
+            total_items: 10,
+            passed_count: 8,
+            failed_count: 2,
+            average_score: 0.85,
+            min_score: 0.5,
+            max_score: 1.0,
+            results: [],
+          },
+          {
+            evaluation_id: 'e2',
+            evaluation_name: 'Non-Versioned Eval',
+            dataset_version_id: null,
+            total_items: 10,
+            passed_count: 6,
+            failed_count: 4,
+            average_score: 0.72,
+            min_score: 0.3,
+            max_score: 0.95,
+            results: [],
+          },
+        ],
+        item_comparisons: [],
+        reference_evaluation_id: 'e1',
+      },
+    });
+
+    render(<ResultComparison />);
+    // The versioned badge should appear exactly once (for e1 only)
+    const versionedBadges = screen.getAllByText('versioned');
+    expect(versionedBadges.length).toBe(1);
+  });
+
   it('displays comparison count in subtitle', () => {
     mockSearchParams = new URLSearchParams('ids=e1&ids=e2&ids=e3');
     render(<ResultComparison />);

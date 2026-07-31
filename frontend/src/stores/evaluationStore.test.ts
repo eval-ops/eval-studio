@@ -131,6 +131,7 @@ describe('evaluationStore', () => {
           mode: 'qa' as const,
           status: 'completed' as const,
           dataset_id: 'd1',
+          dataset_version_id: null,
           rubric_id: null,
           config: {
             model_endpoint: { name: 'test', default_model: 'gpt-4' },
@@ -241,6 +242,7 @@ describe('evaluationStore', () => {
           mode: 'qa',
           status: 'running',
           dataset_id: 'd1',
+          dataset_version_id: null,
           rubric_id: null,
           config: {
             model_endpoint: { name: 'test', default_model: 'gpt-4' },
@@ -275,6 +277,7 @@ describe('evaluationStore', () => {
           mode: 'qa',
           status: 'running',
           dataset_id: 'd1',
+          dataset_version_id: null,
           rubric_id: null,
           config: {
             model_endpoint: { name: 'test', default_model: 'gpt-4' },
@@ -376,7 +379,7 @@ describe('evaluationStore', () => {
         mode: 'qa' as const,
         status: 'pending' as const,
         dataset_id: 'd1',
-
+        dataset_version_id: null,
         rubric_id: null,
         config: {
           model_endpoint: { name: 'test', default_model: 'gpt-4' },
@@ -523,6 +526,7 @@ describe('evaluationStore', () => {
       mode: 'qa' as const,
       status: 'completed' as const,
       dataset_id: 'd1',
+      dataset_version_id: null,
       rubric_id: null,
       config: { model_endpoint: { name: 'test', default_model: 'gpt-4' }, judge_config: {} },
       result_count: 5,
@@ -582,6 +586,7 @@ describe('evaluationStore', () => {
       mode: 'qa' as const,
       status: 'completed' as const,
       dataset_id: 'd1',
+      dataset_version_id: null,
       rubric_id: null,
       config: { model_endpoint: { name: 'test', default_model: 'gpt-4' }, judge_config: {} },
       result_count: 5,

@@ -43,6 +43,7 @@ class EvaluationComparisonItem(BaseModel):
 
     evaluation_id: str
     evaluation_name: str
+    dataset_version_id: str | None = None
     total_items: int
     passed_count: int
     failed_count: int

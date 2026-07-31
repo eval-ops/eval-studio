@@ -197,6 +197,7 @@ async def compare_results(
             EvaluationComparisonItem(
                 evaluation_id=evaluation.id,
                 evaluation_name=evaluation.name,
+                dataset_version_id=evaluation.dataset_version_id,
                 total_items=len(results),
                 passed_count=passed_count,
                 failed_count=failed_count,
