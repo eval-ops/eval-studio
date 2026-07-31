@@ -226,6 +226,14 @@ class TestSanitizeEnv:
         assert result is not None
         assert result == {"SAFE_VAR": "safe"}
 
+    def test_gconv_path_removed(self) -> None:
+        """GCONV_PATH is a glibc attack vector for arbitrary code execution via iconv."""
+        env = {"GCONV_PATH": "/tmp/evil", "HOME": "/home/user"}
+        result = sanitize_env(env)
+        assert result is not None
+        assert "GCONV_PATH" not in result
+        assert "HOME" in result
+
     def test_returns_new_dict(self) -> None:
         """sanitize_env must return a new dict, never mutate the input."""
         env = {"HOME": "/home/user", "LD_PRELOAD": "/tmp/evil.so"}

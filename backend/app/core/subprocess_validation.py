@@ -32,6 +32,7 @@ DANGEROUS_ENV_NAMES: frozenset[str] = frozenset(
         "PROMPT_COMMAND",
         "PYTHONSTARTUP",
         "PYTHONPATH",
+        "PYTHONHOME",
         "PERL5LIB",
         "PERL5OPT",
         "RUBYOPT",
@@ -40,6 +41,8 @@ DANGEROUS_ENV_NAMES: frozenset[str] = frozenset(
         "JAVA_TOOL_OPTIONS",
         "_JAVA_OPTIONS",
         "GIT_SSH_COMMAND",
+        "GCONV_PATH",
+        "OPENSSL_CONF",
     }
 )
 """Exact variable names that are dangerous but not covered by a prefix rule.
