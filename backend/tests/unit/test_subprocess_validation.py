@@ -242,3 +242,50 @@ class TestSanitizeEnv:
         assert "LD_PRELOAD" in env  # original unchanged
         assert result is not None
         assert "LD_PRELOAD" not in result
+
+    def test_dyld_prefix_catches_unknown_vars(self) -> None:
+        """Any variable starting with DYLD_ should be blocked, not just known ones."""
+        env = {"DYLD_FRAMEWORK_PATH": "/tmp/evil", "HOME": "/home/user"}
+        result = sanitize_env(env)
+        assert result is not None
+        assert "DYLD_FRAMEWORK_PATH" not in result
+        assert "HOME" in result
+
+    def test_env_variable_blocked(self) -> None:
+        """The name 'ENV' is in DANGEROUS_ENV_NAMES (shell startup script injection)."""
+        env = {"ENV": "/tmp/evil.sh", "PATH": "/usr/bin"}
+        result = sanitize_env(env)
+        assert result is not None
+        assert "ENV" not in result
+        assert "PATH" in result
+
+    def test_mixed_prefix_and_name_matches(self) -> None:
+        """Both prefix-matched and exact-name-matched vars are stripped in one pass."""
+        env = {
+            "HOME": "/home/user",
+            "PATH": "/usr/bin",
+            "LD_PRELOAD": "/tmp/evil.so",
+            "DYLD_INSERT_LIBRARIES": "/tmp/evil.dylib",
+            "NODE_OPTIONS": "--require=/tmp/evil.js",
+            "BASH_ENV": "/tmp/evil.sh",
+        }
+        result = sanitize_env(env)
+        assert result is not None
+        assert result == {"HOME": "/home/user", "PATH": "/usr/bin"}
+
+    def test_safe_values_preserved_exactly(self) -> None:
+        """Values of safe variables must survive sanitization without modification."""
+        env = {
+            "HOME": "/home/user with spaces",
+            "PATH": "/usr/bin:/usr/local/bin",
+            "CUSTOM_VAR": "value=with=equals",
+            "EMPTY_VAR": "",
+            "LD_PRELOAD": "/tmp/evil.so",
+        }
+        result = sanitize_env(env)
+        assert result is not None
+        assert result["HOME"] == "/home/user with spaces"
+        assert result["PATH"] == "/usr/bin:/usr/local/bin"
+        assert result["CUSTOM_VAR"] == "value=with=equals"
+        assert result["EMPTY_VAR"] == ""
+        assert len(result) == 4
