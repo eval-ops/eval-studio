@@ -1,7 +1,9 @@
-"""Subprocess binary validation — allowlist enforcement for harness and tool server execution.
+"""Subprocess validation — allowlist enforcement and environment sanitization.
 
 This module prevents arbitrary command execution by validating binaries
-against a configurable allowlist before any subprocess is spawned.
+against a configurable allowlist before any subprocess is spawned.  It also
+strips dangerous environment variables (shared-library injectors, startup
+scripts, interpreter hooks) from the environment dict passed to subprocesses.
 """
 
 import os
@@ -10,6 +12,91 @@ import shutil
 import structlog
 
 logger = structlog.get_logger()
+
+# ---------------------------------------------------------------------------
+# Environment sanitization constants
+# ---------------------------------------------------------------------------
+
+DANGEROUS_ENV_PREFIXES: tuple[str, ...] = ("LD_", "DYLD_")
+"""Prefixes that match families of dangerous variables (e.g. LD_PRELOAD,
+LD_LIBRARY_PATH, DYLD_INSERT_LIBRARIES).  Matched case-insensitively."""
+
+DANGEROUS_ENV_NAMES: frozenset[str] = frozenset(
+    {
+        "_RLD_LIST",
+        "LIBPATH",
+        "SHLIB_PATH",
+        "BASH_ENV",
+        "ENV",
+        "ZDOTDIR",
+        "PROMPT_COMMAND",
+        "PYTHONSTARTUP",
+        "PYTHONPATH",
+        "PERL5LIB",
+        "PERL5OPT",
+        "RUBYOPT",
+        "RUBYLIB",
+        "NODE_OPTIONS",
+        "JAVA_TOOL_OPTIONS",
+        "_JAVA_OPTIONS",
+        "GIT_SSH_COMMAND",
+    }
+)
+"""Exact variable names that are dangerous but not covered by a prefix rule.
+Matched case-insensitively."""
+
+
+_DANGEROUS_NAMES_UPPER: frozenset[str] = frozenset(n.upper() for n in DANGEROUS_ENV_NAMES)
+"""Pre-computed upper-cased names for fast case-insensitive lookup."""
+
+_DANGEROUS_PREFIXES_UPPER: tuple[str, ...] = tuple(p.upper() for p in DANGEROUS_ENV_PREFIXES)
+"""Pre-computed upper-cased prefixes for fast case-insensitive matching."""
+
+
+def sanitize_env(env: dict[str, str] | None, context: str = "subprocess") -> dict[str, str] | None:
+    """Strip dangerous environment variables from *env* before subprocess execution.
+
+    Returns a **new** dict (the input is never mutated).  If *env* is ``None``,
+    ``None`` is returned so the caller can distinguish "no env dict at all"
+    from "empty env dict".
+
+    Args:
+        env: The candidate environment dict (or ``None``).
+        context: Human-readable label included in warning log messages.
+
+    Returns:
+        A cleaned copy of *env*, or ``None`` if the input was ``None``.
+    """
+    if env is None:
+        return None
+
+    cleaned: dict[str, str] = {}
+    for key, value in env.items():
+        key_upper = key.upper()
+
+        # Check prefix rules first (LD_*, DYLD_*)
+        if any(key_upper.startswith(prefix) for prefix in _DANGEROUS_PREFIXES_UPPER):
+            logger.warning(
+                "subprocess_validation.env_stripped",
+                variable=key,
+                context=context,
+                reason="matches dangerous prefix",
+            )
+            continue
+
+        # Check exact name rules
+        if key_upper in _DANGEROUS_NAMES_UPPER:
+            logger.warning(
+                "subprocess_validation.env_stripped",
+                variable=key,
+                context=context,
+                reason="matches dangerous name",
+            )
+            continue
+
+        cleaned[key] = value
+
+    return cleaned
 
 
 class CommandNotAllowedError(ValueError):

@@ -5,7 +5,12 @@ import shutil
 
 import pytest
 
-from app.core.subprocess_validation import load_allowed_commands, validate_command
+from app.core.subprocess_validation import (
+    DANGEROUS_ENV_NAMES,
+    load_allowed_commands,
+    sanitize_env,
+    validate_command,
+)
 
 
 class TestValidateCommand:
@@ -131,3 +136,101 @@ class TestLoadAllowedCommands:
         result = load_allowed_commands("echo,__nonexistent__,  ")
         assert os.path.realpath(echo_path) in result
         assert len(result) == 1
+
+
+class TestSanitizeEnv:
+    """Tests for sanitize_env()."""
+
+    def test_none_returns_none(self) -> None:
+        """None input should return None — caller may want to inherit."""
+        result = sanitize_env(None)
+        assert result is None
+
+    def test_empty_dict_returns_empty(self) -> None:
+        """An empty dict should pass through unchanged."""
+        result = sanitize_env({})
+        assert result == {}
+
+    def test_safe_vars_pass_through(self) -> None:
+        """Safe environment variables should not be filtered."""
+        env = {"HOME": "/home/user", "PATH": "/usr/bin", "TERM": "xterm"}
+        result = sanitize_env(env)
+        assert result == env
+
+    def test_ld_preload_removed(self) -> None:
+        """LD_PRELOAD should be caught by the LD_ prefix rule."""
+        env = {"HOME": "/home/user", "LD_PRELOAD": "/tmp/evil.so"}
+        result = sanitize_env(env)
+        assert result is not None
+        assert "LD_PRELOAD" not in result
+        assert "HOME" in result
+
+    def test_ld_library_path_removed(self) -> None:
+        """LD_LIBRARY_PATH should be caught by the LD_ prefix rule."""
+        env = {"PATH": "/usr/bin", "LD_LIBRARY_PATH": "/tmp/libs"}
+        result = sanitize_env(env)
+        assert result is not None
+        assert "LD_LIBRARY_PATH" not in result
+        assert "PATH" in result
+
+    def test_dyld_insert_libraries_removed(self) -> None:
+        """DYLD_INSERT_LIBRARIES should be caught by the DYLD_ prefix rule."""
+        env = {"HOME": "/home/user", "DYLD_INSERT_LIBRARIES": "/tmp/evil.dylib"}
+        result = sanitize_env(env)
+        assert result is not None
+        assert "DYLD_INSERT_LIBRARIES" not in result
+
+    def test_ld_prefix_catches_unknown_vars(self) -> None:
+        """Any variable starting with LD_ should be blocked, even unknown ones."""
+        env = {"LD_SOMETHING_NEW": "value", "HOME": "/home/user"}
+        result = sanitize_env(env)
+        assert result is not None
+        assert "LD_SOMETHING_NEW" not in result
+        assert "HOME" in result
+
+    def test_case_insensitive_matching(self) -> None:
+        """Matching should be case-insensitive to prevent bypass with weird casing."""
+        env = {
+            "ld_preload": "/tmp/evil.so",
+            "Ld_Library_Path": "/tmp/libs",
+            "node_options": "--require=/tmp/evil.js",
+            "pythonpath": "/tmp/evil",
+            "HOME": "/home/user",
+        }
+        result = sanitize_env(env)
+        assert result is not None
+        assert len(result) == 1
+        assert "HOME" in result
+
+    def test_node_options_removed(self) -> None:
+        """NODE_OPTIONS is a known dangerous env var and should be removed."""
+        env = {"NODE_OPTIONS": "--require=/tmp/evil.js", "PATH": "/usr/bin"}
+        result = sanitize_env(env)
+        assert result is not None
+        assert "NODE_OPTIONS" not in result
+        assert "PATH" in result
+
+    def test_pythonpath_removed(self) -> None:
+        """PYTHONPATH is a known dangerous env var and should be removed."""
+        env = {"PYTHONPATH": "/tmp/evil", "HOME": "/home/user"}
+        result = sanitize_env(env)
+        assert result is not None
+        assert "PYTHONPATH" not in result
+        assert "HOME" in result
+
+    def test_all_dangerous_names_blocked(self) -> None:
+        """Every entry in DANGEROUS_ENV_NAMES should be removed when present."""
+        env = {name: "value" for name in DANGEROUS_ENV_NAMES}
+        env["SAFE_VAR"] = "safe"
+        result = sanitize_env(env)
+        assert result is not None
+        assert result == {"SAFE_VAR": "safe"}
+
+    def test_returns_new_dict(self) -> None:
+        """sanitize_env must return a new dict, never mutate the input."""
+        env = {"HOME": "/home/user", "LD_PRELOAD": "/tmp/evil.so"}
+        result = sanitize_env(env)
+        assert result is not env
+        assert "LD_PRELOAD" in env  # original unchanged
+        assert result is not None
+        assert "LD_PRELOAD" not in result
