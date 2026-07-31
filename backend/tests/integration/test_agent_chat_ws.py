@@ -5,8 +5,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from starlette.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
+from app.core.config import settings
 from app.core.database import Base
+from app.core.security import WS_CLOSE_AUTH_FAILED
 from app.models.evaluation import Evaluation
 from app.models.session import Session
 from app.websocket.chat import _processing
@@ -273,3 +276,93 @@ async def test_ws_unknown_message_type(ws_setup):
             error = ws.receive_json()
             assert error["type"] == "error"
             assert "Unknown message type" in error["data"]["message"]
+
+
+# ---------------------------------------------------------------------------
+# WebSocket authentication tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def _auth_enabled():
+    """Enable auth for WebSocket auth tests."""
+    original = settings.auth_disabled
+    settings.auth_disabled = False
+    yield
+    settings.auth_disabled = original
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_auth_enabled")
+async def test_ws_rejects_unauthenticated_connection(ws_setup):
+    """WebSocket connection without token should be closed with 4401 when auth is enabled."""
+    from app.main import app
+
+    setup = ws_setup
+
+    with patch("app.websocket.chat.async_session_factory", setup["factory"]):
+        client = TestClient(app)
+        # Post-accept pattern: connection is accepted, then auth check closes it with 4401
+        with (
+            pytest.raises(WebSocketDisconnect) as exc_info,
+            client.websocket_connect(f"/ws/session/{setup['session_id']}") as ws,
+        ):
+            ws.receive_json()  # should not get connected message
+
+        assert exc_info.value.code == WS_CLOSE_AUTH_FAILED
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_auth_enabled")
+async def test_ws_rejects_invalid_token(ws_setup):
+    """WebSocket connection with an invalid token should be closed with 4401."""
+    from app.main import app
+
+    setup = ws_setup
+
+    with (
+        patch("app.websocket.chat.async_session_factory", setup["factory"]),
+        patch("app.core.security.async_session_factory", setup["factory"]),
+    ):
+        client = TestClient(app)
+        with (
+            pytest.raises(WebSocketDisconnect) as exc_info,
+            client.websocket_connect(f"/ws/session/{setup['session_id']}?token=esk_bogus_invalid_token") as ws,
+        ):
+            ws.receive_json()
+
+        assert exc_info.value.code == WS_CLOSE_AUTH_FAILED
+
+
+@pytest.mark.asyncio
+async def test_ws_allows_connection_when_auth_disabled(ws_setup):
+    """WebSocket connection succeeds without token when auth is disabled (default)."""
+    from app.main import app
+
+    setup = ws_setup
+
+    # settings.auth_disabled is True by default — no _auth_enabled fixture
+    with patch("app.websocket.chat.async_session_factory", setup["factory"]):
+        client = TestClient(app)
+        with client.websocket_connect(f"/ws/session/{setup['session_id']}") as ws:
+            data = ws.receive_json()
+            assert data["type"] == "connected"
+            assert data["session_id"] == setup["session_id"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_auth_enabled")
+async def test_ws_progress_rejects_unauthenticated(ws_setup):
+    """Progress WebSocket should reject unauthenticated connections with 4401."""
+    from app.main import app
+
+    setup = ws_setup
+
+    client = TestClient(app)
+    with (
+        pytest.raises(WebSocketDisconnect) as exc_info,
+        client.websocket_connect(f"/ws/progress/{setup['evaluation_id']}") as ws,
+    ):
+        ws.receive_text()  # should not receive anything
+
+    assert exc_info.value.code == WS_CLOSE_AUTH_FAILED
